@@ -1,5 +1,6 @@
 const std = @import("std");
 const Arg = @import("arg.zig").Arg;
+const enter = @import("enter.zig").enter;
 
 pub fn main() !void {
     var args = std.process.args();
@@ -8,7 +9,7 @@ pub fn main() !void {
     const arg = Arg.parse(args.next());
 
     const result = switch (arg) {
-        .enter => "Enter amount",
+        .enter => enter(args.next()),
         .read => "rich af",
         .reset => "resetting...",
         .noArg, .unknown => "no valid argument", 
