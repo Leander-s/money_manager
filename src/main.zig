@@ -1,13 +1,23 @@
 const std = @import("std");
+const Arg = @import("arg.zig").Arg;
 
 pub fn main() !void {
-    std.debug.print("All your {s} are belong to us.\n", .{"codebase"});
+    var args = std.process.args();
+    _ = args.skip();
 
-    const stdout_file = std.io.getStdOut().writer();
-    var bw = std.io.bufferedWriter(stdout_file);
-    const stdout = bw.writer();
+    const arg = Arg.parse(args.next());
 
-    try stdout.print("Run `zig build test` to run the tests.\n", .{});
+    const result = switch (arg) {
+        .enter => "Enter amount",
+        .read => "rich af",
+        .reset => "resetting...",
+        .noArg, .unknown => "no valid argument", 
+    };
 
-    try bw.flush(); // Don't forget to flush!
+    var stdout_buffer: [1024]u8 = undefined;
+    var stdout_writer = std.fs.File.stdout().writer(&stdout_buffer);
+    const stdout = &stdout_writer.interface;
+
+    try stdout.print("{s}\n", .{result});
+    try stdout.flush();
 }
