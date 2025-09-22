@@ -1,6 +1,8 @@
 const std = @import("std");
 const Arg = @import("arg.zig").Arg;
 const enter = @import("enter.zig").enter;
+const read = @import("read.zig").read;
+const reset = @import("reset.zig").reset;
 
 pub fn main() !void {
     var args = std.process.args();
@@ -9,9 +11,9 @@ pub fn main() !void {
     const arg = Arg.parse(args.next());
 
     const result = switch (arg) {
-        .enter => enter(args.next()),
-        .read => "rich af",
-        .reset => "resetting...",
+        .enter => try enter(args.next()),
+        .read => try read(),
+        .reset => try reset(),
         .noArg, .unknown => "no valid argument", 
     };
 
@@ -19,6 +21,6 @@ pub fn main() !void {
     var stdout_writer = std.fs.File.stdout().writer(&stdout_buffer);
     const stdout = &stdout_writer.interface;
 
-    try stdout.print("{s}\n", .{result});
+    try stdout.print("{d}\n", .{result});
     try stdout.flush();
 }
