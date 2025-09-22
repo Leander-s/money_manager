@@ -4,16 +4,9 @@ pub fn read() !f32 {
     const file = try std.fs.cwd().openFile("log", .{ .mode = .read_only });
     defer file.close();
 
-    const tempFile = try std.fs.cwd().createFile("log_temp", .{});
-    defer tempFile.close();
-
-    const buffer: [1024]u8 = undefined;
-    // var n = try file.read(&buffer);
-    var i = 0;
-    while (buffer[i] != ',') {
-        i += 1;
-    }
-    const numberString = buffer[0..i];
+    var buffer: [1024]u8 = undefined;
+    var reader: std.fs.File.Reader = .init(file, &buffer);
+    const numberString = reader.interface.buffered();
     const number = try std.fmt.parseFloat(f32, numberString);
     return number;
 }

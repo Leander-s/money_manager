@@ -7,8 +7,10 @@ pub fn enter(given_arg: ?[]const u8) !f32 {
     const number = try std.fmt.parseFloat(f32, arg);
 
     var budget = try Budget.init("data");
+    defer budget.destroy();
 
     var log = try Log.init("log");
+    defer log.destroy();
 
     const last_number = try log.getLastNumber();
     try log.update(number);
@@ -20,7 +22,7 @@ pub fn enter(given_arg: ?[]const u8) !f32 {
 
     const new_available = last_available_money + additional_available_money; 
 
-    budget.update(new_available);
+    try budget.update(new_available);
 
     return new_available;
 }

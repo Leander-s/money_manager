@@ -10,17 +10,22 @@ pub fn main() !void {
 
     const arg = Arg.parse(args.next());
 
-    const result = switch (arg) {
+    const result: ?f32 = switch (arg) {
         .enter => try enter(args.next()),
         .read => try read(),
         .reset => try reset(),
-        .noArg, .unknown => "no valid argument", 
+        .noArg, .unknown => null,
     };
 
     var stdout_buffer: [1024]u8 = undefined;
     var stdout_writer = std.fs.File.stdout().writer(&stdout_buffer);
     const stdout = &stdout_writer.interface;
 
-    try stdout.print("{d}\n", .{result});
+    if (result) |value| {
+        try stdout.print("{d}\n", .{value});
+    } else {
+        try stdout.print("No valid argument given\n", .{});
+    }
+
     try stdout.flush();
 }

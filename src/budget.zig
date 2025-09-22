@@ -12,14 +12,20 @@ pub fn init(path: []const u8) !Self {
     return self;
 }
 
+pub fn destroy(self: *Self) void {
+    self.file.close();
+}
+
 pub fn update(self: *Self, new_amount: f32) !void {
-    try self.file.writer(&self.buffer).interface.print("{d}", .{new_amount});
+    var writer: std.fs.File.Writer = .init(self.file, &self.buffer);
+    try writer.interface.print("{d}", .{new_amount});
+    try writer.interface.flush();
 }
 
 pub fn read(self: *Self) !f32 {
-    const readBuffer: []u8 = undefined;
-    const n = try self.file.reader(&self.buffer).read(&readBuffer);
-    if (n == 0) return 0;
-    const number = try std.fmt.parseFloat(f32, readBuffer);
+    var reader: std.fs.File.Reader = .init(self.file, &self.buffer);
+    const numberString = reader.interface.buffered();
+    if (numberString.len == 0) return 0;
+    const number = try std.fmt.parseFloat(f32, numberString);
     return number;
 }
