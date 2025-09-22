@@ -14,6 +14,6 @@ pub fn read() !f32 {
         i += 1;
     }
     const numberString = buffer[0..i];
-    const number = std.fmt.parseFloat(f32, numberString);
+    const number = try std.fmt.parseFloat(f32, numberString);
     return number;
 }

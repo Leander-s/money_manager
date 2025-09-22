@@ -6,7 +6,7 @@ pub fn enter(given_arg: ?[]const u8) !f32 {
     const arg = given_arg orelse return error.InvalidArgument;
     const number = try std.fmt.parseFloat(f32, arg);
 
-    var budget = Budget.init("data");
+    var budget = try Budget.init("data");
 
     var log = try Log.init("log");
 
