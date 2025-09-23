@@ -19,6 +19,7 @@ pub fn enter(given_arg: ?[]const u8) !f32 {
     const additional_available_money = diff/2;
 
     const last_available_money = try budget.read();
+    std.debug.print("{}\n", .{last_available_money});
 
     const new_available = last_available_money + additional_available_money; 
 

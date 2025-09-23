@@ -23,9 +23,10 @@ pub fn update(self: *Self, new_amount: f32) !void {
 }
 
 pub fn read(self: *Self) !f32 {
-    var reader: std.fs.File.Reader = .init(self.file, &self.buffer);
-    const numberString = reader.interface.buffered();
-    if (numberString.len == 0) return 0;
-    const number = try std.fmt.parseFloat(f32, numberString);
+    const n = try self.file.read(&self.buffer);
+    const buffer = self.buffer[0..self.buffer.len];
+    std.debug.print("{s}\n", .{buffer});
+    if (n == 0) return 0;
+    const number = try std.fmt.parseFloat(f32, buffer);
     return number;
 }

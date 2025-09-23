@@ -35,7 +35,9 @@ pub fn update(self: *Self, new_amount: f32) !void {
 
 pub fn getLastNumber(self: *Self) !f32 {
     var reader = self.file.reader(&self.buffer);
-    const numberString = try reader.interface.takeDelimiterExclusive(',');
+    const numberString = reader.interface.takeDelimiterExclusive(',') catch {
+        return 0;
+    };
     const number = try std.fmt.parseFloat(f32, numberString);
     return number;
 }
