@@ -6,10 +6,12 @@ history: std.ArrayList(f32),
 
 const Self = @This();
 
-pub fn init(path: []const u8) !Self {
+pub fn init(fileName: []const u8) !Self {
     var self: Self = undefined;
     self.allocator = std.heap.page_allocator;
     self.history = std.ArrayList(f32).empty;
+
+    const path = try self.getPathToFile(fileName);
 
     const file = std.fs.cwd().openFile(path, .{ .mode = .read_only }) catch {
         _ = try std.fs.cwd().createFile(path, .{});
@@ -38,7 +40,24 @@ fn initDefault() Self {
     return .{ .allocator = std.heap.page_allocator, .budget = 0, .history = std.ArrayList(f32).empty };
 }
 
-pub fn write(self: *Self, path: []const u8) !void {
+fn getPathToFile(self: *Self, fileName: []const u8) ![]const u8 {
+    const exe_dir = try std.fs.selfExeDirPathAlloc(self.allocator);
+    defer self.allocator.free(exe_dir);
+
+    var pathList = std.ArrayList(u8).empty;
+    defer pathList.deinit(self.allocator);
+
+    try pathList.appendSlice(self.allocator, exe_dir);
+    try pathList.appendSlice(self.allocator, "/");
+    try pathList.appendSlice(self.allocator, fileName);
+
+    const path = try pathList.toOwnedSlice(self.allocator);
+
+    return path;
+}
+
+pub fn write(self: *Self, fileName: []const u8) !void {
+    const path = try self.getPathToFile(fileName);
     var file = std.fs.cwd().openFile(path, .{ .mode = .write_only }) catch try std.fs.cwd().createFile(path, .{});
 
     var buffer: [1024]u8 = undefined;
