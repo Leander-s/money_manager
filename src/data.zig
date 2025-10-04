@@ -113,4 +113,7 @@ fn recalculateBudget(self: *Self) void {
         // Save half the income
         self.budget += diff/2;
     }
+    self.budget *= 100;
+    self.budget = @round(self.budget);
+    self.budget /= 100;
 }
