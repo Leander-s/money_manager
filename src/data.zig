@@ -1,8 +1,10 @@
 const std = @import("std");
+const contains = @import("util.zig").contains;
 
 budget: f32,
 allocator: std.mem.Allocator,
 history: std.ArrayList(f32),
+timestamps: std.ArrayList(i64),
 
 const Self = @This();
 
@@ -10,6 +12,7 @@ pub fn init(fileName: []const u8) !Self {
     var self: Self = undefined;
     self.allocator = std.heap.page_allocator;
     self.history = std.ArrayList(f32).empty;
+    self.timestamps = std.ArrayList(i64).empty;
 
     const path = try self.getPathToFile(fileName);
 
@@ -28,16 +31,30 @@ pub fn init(fileName: []const u8) !Self {
         const historyString = reader.interface.takeDelimiterExclusive('\n') catch {
             break;
         };
-        const historyNumber = std.fmt.parseFloat(f32, historyString) catch {
+        var historyNumberString: []const u8 = undefined;
+        var historyTimestampString: []const u8 = undefined;
+
+        if (contains(historyString, ":")) |index| {
+            historyNumberString = historyString[0..index];
+            historyTimestampString = historyString[index + 1 .. historyString.len];
+        } else {
+            historyNumberString = historyString;
+            historyTimestampString = "0";
+        }
+        const historyNumber = std.fmt.parseFloat(f32, historyNumberString) catch {
+            return error.WrongFormat;
+        };
+        const historyTimestamp = std.fmt.parseInt(i64, historyTimestampString, 10) catch {
             return error.WrongFormat;
         };
         try self.history.append(self.allocator, historyNumber);
+        try self.timestamps.append(self.allocator, historyTimestamp);
     }
     return self;
 }
 
 fn initDefault() Self {
-    return .{ .allocator = std.heap.page_allocator, .budget = 0, .history = std.ArrayList(f32).empty };
+    return .{ .allocator = std.heap.page_allocator, .budget = 0, .history = std.ArrayList(f32).empty, .timestamps = std.ArrayList(i64).empty };
 }
 
 fn getPathToFile(self: *Self, fileName: []const u8) ![]const u8 {
@@ -58,7 +75,7 @@ fn getPathToFile(self: *Self, fileName: []const u8) ![]const u8 {
 
 pub fn write(self: *Self, fileName: []const u8) !void {
     const path = try self.getPathToFile(fileName);
-    var file = std.fs.cwd().openFile(path, .{ .mode = .write_only }) catch try std.fs.cwd().createFile(path, .{});
+    var file = try std.fs.cwd().createFile(path, .{});
 
     var buffer: [1024]u8 = undefined;
     var writer = file.writer(&buffer);
@@ -67,7 +84,7 @@ pub fn write(self: *Self, fileName: []const u8) !void {
     try writer.seekTo(stat.size);
     var historyIndex: usize = 0;
     while (historyIndex < self.history.items.len) {
-        try writer.interface.print("{d}\n", .{self.history.items[historyIndex]});
+        try writer.interface.print("{d}:{d}\n", .{self.history.items[historyIndex], self.timestamps.items[historyIndex]});
         stat = try file.stat();
         try writer.seekTo(stat.size);
         historyIndex += 1;
@@ -81,13 +98,16 @@ pub fn read(self: *Self) f32 {
 }
 
 pub fn enter(self: *Self, number: f32) !f32 {
+    const timestamp = std.time.timestamp();
     try self.history.insert(self.allocator, 0, number);
+    try self.timestamps.insert(self.allocator, 0, timestamp);
     self.recalculateBudget();
     return self.budget;
 }
 
 pub fn reset(self: *Self) f32 {
     self.history.clearAndFree(self.allocator);
+    self.timestamps.clearAndFree(self.allocator);
     self.budget = 0;
     return 0;
 }
@@ -105,13 +125,13 @@ fn recalculateBudget(self: *Self) void {
     const before = self.history.items[1];
     const after = self.history.items[0];
     const diff = after - before;
-    
+
     if (diff < 0) {
         // Spendings get taken from the budget
         self.budget += diff;
     } else {
         // Save half the income
-        self.budget += diff/2;
+        self.budget += diff / 2;
     }
     self.budget *= 100;
     self.budget = @round(self.budget);
