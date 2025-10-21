@@ -24,13 +24,14 @@ pub fn main() !void {
         .enter => try data.enter(argNumber),
         .read => data.read(),
         .reset => data.reset(),
+        .recalculate => data.recalculateBudgets(),
         .noArg, .unknown => null,
     };
 
-    try data.write("log");
-    data.destroy();
 
     if (result) |value| {
+        try data.write("log");
+        data.destroy();
         try stdout.print("{d}\n", .{value});
     } else {
         try stdout.print("No valid argument given\n", .{});

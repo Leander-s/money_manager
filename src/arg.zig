@@ -4,6 +4,7 @@ pub const Arg = enum {
     enter,
     read,
     reset,
+    recalculate,
     unknown,
     noArg,
 
@@ -12,6 +13,7 @@ pub const Arg = enum {
             .{"enter", .enter},
             .{"read", .read},
             .{"reset", .reset},
+            .{"recalculate", .recalculate},
             .{"", .noArg},
             .{"unknown", .unknown},
         });
