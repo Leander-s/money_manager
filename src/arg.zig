@@ -5,6 +5,7 @@ pub const Arg = enum {
     read,
     reset,
     recalculate,
+    runServer,
     unknown,
     noArg,
 
@@ -14,6 +15,7 @@ pub const Arg = enum {
             .{"read", .read},
             .{"reset", .reset},
             .{"recalculate", .recalculate},
+            .{"run", .runServer},
             .{"", .noArg},
             .{"unknown", .unknown},
         });

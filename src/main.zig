@@ -1,6 +1,7 @@
 const std = @import("std");
 const Arg = @import("arg.zig").Arg;
 const Data = @import("data.zig");
+const Server = @import("server.zig");
 
 pub fn main() !void {
     var stdout_buffer: [1024]u8 = undefined;
@@ -25,9 +26,12 @@ pub fn main() !void {
         .read => data.read(),
         .reset => data.reset(),
         .recalculate => data.recalculateBudgets(),
+        .runServer => blk: {
+            try Server.run(.{ 127, 0, 0, 1 }, 8080);
+            break :blk null;
+        },
         .noArg, .unknown => null,
     };
-
 
     if (result) |value| {
         try data.write("log");
