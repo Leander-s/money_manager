@@ -10,6 +10,7 @@ const Self = @This();
 pub fn run(ip: [4]u8, port: u16) !void {
     const address: Address = Address.initIp4(ip, port);
     var server = try address.listen(.{ .reuse_address = true });
+    std.log.info("Listening on {d}.{d}.{d}.{d}\n", .{ip[0], ip[1], ip[2], ip[3]});
     defer server.deinit();
     const allocator = std.heap.page_allocator;
     while (true) {
@@ -25,10 +26,11 @@ fn handleConnection(conn: *Connection) !void {
 
     var recBuf: [4096]u8 = undefined;
     var sendBuf: [4096]u8 = undefined;
-    @memset(&sendBuf, 0);
-    @memset(&recBuf, 0);
     while (true) {
+        @memset(&sendBuf, 0);
+        @memset(&recBuf, 0);
         const n = try conn.stream.read(&recBuf);
+        std.log.info("Received: {s}\n", .{recBuf});
         if (n == 0) break;
         const prefix = "Received: ";
         @memcpy(sendBuf[0..prefix.len], prefix);
