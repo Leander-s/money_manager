@@ -10,7 +10,7 @@ const Self = @This();
 pub fn run(ip: [4]u8, port: u16) !void {
     const address: Address = Address.initIp4(ip, port);
     var server = try address.listen(.{ .reuse_address = true });
-    std.log.info("Listening on {d}.{d}.{d}.{d}\n", .{ip[0], ip[1], ip[2], ip[3]});
+    std.log.info("Listening on {d}.{d}.{d}.{d}\n", .{ ip[0], ip[1], ip[2], ip[3] });
     defer server.deinit();
     const allocator = std.heap.page_allocator;
     while (true) {
@@ -22,29 +22,22 @@ pub fn run(ip: [4]u8, port: u16) !void {
 
 fn handleConnection(conn: *Connection) !void {
     defer conn.stream.close();
-    std.log.info("Client connected: {any}", .{conn.address});
+    var addressBuf:[64]u8 = undefined;
+    var addressWriter = std.io.Writer.fixed(&addressBuf);
+    try conn.address.in.format(&addressWriter);
+    std.debug.print("Client connected: {s}\n", .{addressWriter.buffered()});
 
     var recBuf: [4096]u8 = undefined;
     var sendBuf: [4096]u8 = undefined;
     while (true) {
-        @memset(&sendBuf, 0);
-        @memset(&recBuf, 0);
         const n = try conn.stream.read(&recBuf);
-        std.log.info("Received: {s}\n", .{recBuf});
+        std.log.info("Received: {s}\n", .{recBuf[0..n]});
         if (n == 0) break;
         const prefix = "Received: ";
         @memcpy(sendBuf[0..prefix.len], prefix);
-        var index: usize = 0;
-        while (index < recBuf.len) {
-            const sendBufIndex = index + sendBuf.len;
-            if (sendBufIndex >= 4096) {
-                break;
-            }
+        @memcpy(sendBuf[prefix.len..prefix.len+n], recBuf[0..n]);
+        const msgLength = prefix.len + n;
 
-            sendBuf[sendBufIndex] = recBuf[index];
-            index += 1;
-        }
-
-        try conn.stream.writeAll(&sendBuf);
+        try conn.stream.writeAll(sendBuf[0..msgLength]);
     }
 }
