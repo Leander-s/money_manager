@@ -20,3 +20,13 @@ savings.
 
 This resets all the data saved in the background. Read will now print 0. You have to enter your 
 starting amount again to start the saving process again.
+
+## Run server
+[!CAUTION]
+This is will likely change drastically in the future
+
+    money run
+
+This starts a money manager server to access from a money manager client.
+[!WARNING]
+There is no client yet and the server just echoes whatever one sends to it.
