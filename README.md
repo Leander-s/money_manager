@@ -29,4 +29,12 @@ starting amount again to start the saving process again.
 
 This starts a money manager server to access from a money manager client.
 > [!WARNING]
-> There is no client yet and the server just echoes whatever one sends to it.
+> There is no client yet but you can use curl to access the server.
+### Curl examples
+Get current available money:
+
+    curl <ip>:8080/budget/
+
+Enter an amount:
+
+    curl <ip>:8080/balance/ -d 1000

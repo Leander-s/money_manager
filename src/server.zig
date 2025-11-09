@@ -1,3 +1,5 @@
+const Data = @import("data.zig");
+
 const std = @import("std");
 const Server = std.net.Server;
 const Address = std.net.Address;
@@ -6,16 +8,18 @@ const Connection = std.net.Server.Connection;
 const Thread = std.Thread;
 const http = std.http;
 
+data: Data = undefined,
+
 const Self = @This();
 
-pub const Handler = *const fn (req: *http.Request, allocator: std.mem.Allocator) anyerror!void;
+pub const Handler = *const fn (self: *Self, req: *http.Server.Request, allocator: std.mem.Allocator) anyerror!void;
 
 pub const GET_ROUTES = std.StaticStringMap(Handler).initComptime(.{
-    .{"/budget/", budgetGet},
+    .{ "/budget/", budgetGet },
 });
 
 pub const POST_ROUTES = std.StaticStringMap(Handler).initComptime(.{
-    .{"/balance/", balancePost},
+    .{ "/balance/", balancePost },
 });
 
 pub fn run(ip: [4]u8, port: u16) !void {
@@ -47,34 +51,69 @@ fn handleRequest(conn: *Connection) !void {
     var req = try server.receiveHead();
 
     const method = req.head.method;
-    const length = req.head.content_length orelse 0;
-    const target = req.head.target;
+    // const length = req.head.content_length orelse 0;
+    const target = splitTarget(req.head.target);
 
+    var self: Self = undefined;
+
+    self.data = Data.init("log") catch {
+        std.log.err("Failed to initialize data", .{});
+        try notFoundHandler(&self, &req, std.heap.page_allocator);
+        return;
+    };
+
+    if (method == http.Method.GET) {
+        const handler = GET_ROUTES.get(target.path) orelse notFoundHandler;
+        try handler(&self, &req, std.heap.page_allocator);
+    } else if (method == http.Method.POST) {
+        const handler = POST_ROUTES.get(target.path) orelse notFoundHandler;
+        try handler(&self, &req, std.heap.page_allocator);
+    } else {
+        try notFoundHandler(&self, &req, std.heap.page_allocator);
+    }
+}
+
+fn splitTarget(target: []const u8) struct { path: []const u8, query: []const u8 } {
+    const partIndex = std.mem.indexOf(u8, target, "?") orelse target.len;
+    return .{ .path = target[0..partIndex], .query = target[partIndex..] };
+}
+
+fn budgetGet(self: *Self, req: *http.Server.Request, _: std.mem.Allocator) anyerror!void {
+    // Placeholder implementation for GET /budget/
+    const budget = self.data.read();
+    var responseBuf: [1048]u8 = undefined;
+    const response = std.fmt.bufPrint(&responseBuf, "Budget is {d}\n", .{budget}) catch {
+        try req.respond("Internal Server Error", .{ .status = http.Status.internal_server_error });
+        return;
+    };
+    try req.respond(response, .{ .status = http.Status.ok });
+}
+
+fn balancePost(self: *Self, req: *http.Server.Request, _: std.mem.Allocator) anyerror!void {
     var bodyBuffer: [4096]u8 = undefined;
     var bodyReader = req.readerExpectNone(bodyBuffer[0..]);
 
     var fixed = std.Io.Writer.fixed(&bodyBuffer);
     const n = try bodyReader.stream(&fixed, .limited(bodyBuffer.len));
 
-    std.debug.print("Received request: '{s}' with body length: {d}\n", .{bodyBuffer[0..n], n});
-
-    try req.respond(bodyBuffer[0..n], .{ .status = http.Status.ok, .keep_alive = true, .extra_headers = &.{.{ .name = "content-type", .value = "text/plain; charset=utf-8" }} });
-}
-
-fn splitTarget(target: []const u8) struct {path: []const u8, query: []const u8} {
-    const parts = std.mem.split(target, "?");
-    if (parts.len < 2) {
-        return error.InvalidTarget;
+    if (n == 0) {
+        try req.respond("Empty body", .{ .status = http.Status.bad_request });
+        return;
     }
-    return parts[1];
+
+    const newBalance = std.fmt.parseFloat(f32, bodyBuffer[0..n]) catch {
+        try req.respond("Invalid balance value", .{ .status = http.Status.bad_request });
+        return;
+    };
+
+    _ = self.data.enter(newBalance) catch {
+        std.log.err("Failed to update balance", .{});
+        try req.respond("Internal Server Error", .{ .status = http.Status.internal_server_error });
+        return;
+    };
+    return budgetGet(self, req, std.heap.page_allocator);
 }
 
-fn budgetGet(req: *http.Request, _: std.mem.Allocator) anyerror!void {
-    // Placeholder implementation for GET /budget/
-    try req.respond("Budget GET response", .{ .status = http.Status.ok });
-}
-
-fn balancePost(req: *http.Request, _: std.mem.Allocator) anyerror!void {
-    // Placeholder implementation for POST /balance/
-    try req.respond("Balance POST response", .{ .status = http.Status.ok });
+fn notFoundHandler(_: *Self, req: *http.Server.Request, _: std.mem.Allocator) anyerror!void {
+    try req.respond("404 Not Found", .{ .status = http.Status.not_found });
 }
