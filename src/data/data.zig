@@ -1,10 +1,15 @@
 const std = @import("std");
-const contains = @import("util.zig").contains;
+const contains = @import("../util.zig").contains;
 const LogEntry = @import("logentry.zig");
+const Config = @import("config.zig");
+
+const configLoc = "/.config/money_manager/config";
 
 budget: f32,
 allocator: std.mem.Allocator,
 entries: std.ArrayList(LogEntry),
+config: Config,
+configPath: []const u8,
 
 const Self = @This();
 
@@ -13,20 +18,30 @@ pub fn init(fileName: []const u8) !Self {
     self.allocator = std.heap.page_allocator;
     self.entries = std.ArrayList(LogEntry).empty;
 
+    const homeDir = try getHomeDir(self.allocator);
+    defer self.allocator.free(homeDir);
+    self.configPath = std.fmt.allocPrint(self.allocator, "{s}{s}", .{homeDir, configLoc}) catch {
+        std.debug.print("Failed to construct config path.\n", .{});
+        return error.ConfigPathError;
+    };
+
+    self.config = try Config.load(self.configPath);
+
     const path = try self.getPathToFile(fileName);
     try self.parseFile(path);
 
     return self;
 }
 
-fn initDefault() Self {
-    return .{ .allocator = std.heap.page_allocator, .budget = 0, .entries = std.ArrayList(LogEntry).empty };
+fn initDefault(self: *Self) !void {
+    self.budget = 0;
+    self.entries = std.ArrayList(LogEntry).empty;
 }
 
 fn parseFile(self: *Self, path: []const u8) !void {
     const file = std.fs.cwd().openFile(path, .{ .mode = .read_only }) catch {
         _ = try std.fs.cwd().createFile(path, .{});
-        self.* = initDefault();
+        try self.initDefault();
         return;
     };
 
@@ -124,6 +139,10 @@ pub fn write(self: *Self, fileName: []const u8) !void {
     }
     try writer.seekTo(0);
     try writer.interface.flush();
+
+    if (self.config.changed) {
+        try self.config.save(self.configPath);
+    }
 }
 
 pub fn read(self: *Self) f32 {
@@ -135,7 +154,7 @@ pub fn enter(self: *Self, number: f32) !f32 {
     if (self.entries.items.len > 0) {
         lastEntry = &self.entries.items[0];
     }
-    const newEntry = LogEntry.init(lastEntry, number, 0.5);
+    const newEntry = LogEntry.init(lastEntry, number, self.config.ratio);
     try self.entries.insert(self.allocator, 0, newEntry);
     self.budget = newEntry.budget;
     return self.budget;
@@ -155,12 +174,26 @@ pub fn recalculateBudgets(self: *Self) f32{
     var index: usize = self.entries.items.len - 1;
     while (true) {
         var entry = self.entries.items[index];
+        const ratio = entry.ratio;
         var previousEntry: ?*LogEntry = null;
         if (index < self.entries.items.len - 1) previousEntry = &self.entries.items[index + 1];
-        self.entries.items[index] = entry.recalculate(previousEntry, 0.5);
+        self.entries.items[index] = entry.recalculate(previousEntry, ratio);
         if (index == 0) break;
         index -= 1;
     }
     self.budget = self.entries.items[0].budget;
     return self.budget;
+}
+
+fn getHomeDir(allocator: std.mem.Allocator) ![]const u8 {
+    var env = std.process.getEnvMap(allocator) catch return error.EnvVarError;
+    defer env.deinit();
+    if (env.get("HOME")) |home| {
+        std.debug.print("Home dir: {s}\n", .{home});
+        return allocator.dupe(u8, home) catch return error.HomePathAllocError;
+    }
+    if (env.get("USERPROFILE")) |home| {
+        return allocator.dupe(u8, home) catch return error.HomePathAllocError;
+    }
+    return error.HomeNotFound;
 }

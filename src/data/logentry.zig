@@ -1,7 +1,7 @@
 const std = @import("std");
 const time = std.time;
 
-const contains = @import("util.zig").contains;
+const contains = @import("../util.zig").contains;
 
 budget: f32,
 balance: f32,
@@ -25,7 +25,7 @@ pub fn init(optLastEntry: ?*Self, newBalance: f32, currentRatio: f32) Self {
         // Spendings get taken from the budget
         self.budget += diff;
     } else {
-        // Save half the income
+        // The new budget is the income times the current ratio
         self.budget += diff * currentRatio;
     }
 

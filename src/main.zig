@@ -1,6 +1,6 @@
 const std = @import("std");
 const Arg = @import("arg.zig").Arg;
-const Data = @import("data.zig");
+const Data = @import("data/data.zig");
 const Server = @import("server/server.zig");
 
 pub fn main() !void {
