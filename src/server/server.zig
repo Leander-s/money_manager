@@ -1,4 +1,4 @@
-const Data = @import("data.zig");
+const Data = @import("../data.zig");
 
 const std = @import("std");
 const Server = std.net.Server;
@@ -71,6 +71,9 @@ fn handleRequest(conn: *Connection) !void {
     } else {
         try notFoundHandler(&self, &req, std.heap.page_allocator);
     }
+    self.data.write("log") catch {
+        std.log.err("Failed to write data to log", .{});
+    };
 }
 
 fn splitTarget(target: []const u8) struct { path: []const u8, query: []const u8 } {

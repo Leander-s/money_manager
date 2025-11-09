@@ -1,7 +1,7 @@
 const std = @import("std");
 const Arg = @import("arg.zig").Arg;
 const Data = @import("data.zig");
-const Server = @import("server.zig");
+const Server = @import("server/server.zig");
 
 pub fn main() !void {
     var stdout_buffer: [1024]u8 = undefined;
