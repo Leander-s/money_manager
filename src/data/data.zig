@@ -1,5 +1,5 @@
 const std = @import("std");
-const contains = @import("../util.zig").contains;
+const contains = @import("util").contains;
 const LogEntry = @import("logentry.zig");
 const Config = @import("config.zig");
 

@@ -1,7 +1,8 @@
 const std = @import("std");
 const time = std.time;
+const expect = std.testing.expect;
 
-const contains = @import("../util.zig").contains;
+const contains = @import("util").contains;
 
 budget: f32,
 balance: f32,
@@ -19,15 +20,8 @@ pub fn init(optLastEntry: ?*Self, newBalance: f32, currentRatio: f32) Self {
     const lastEntry = optLastEntry.?;
     self.budget = lastEntry.budget;
 
-    const diff = self.balance - lastEntry.balance;
-
-    if (diff < 0) {
-        // Spendings get taken from the budget
-        self.budget += diff;
-    } else {
-        // The new budget is the income times the current ratio
-        self.budget += diff * currentRatio;
-    }
+    const diff = calculateBudgetDiff(lastEntry.balance, self.balance, currentRatio);
+    self.budget += diff;
 
     // round the budget to 2 places
     self.budget *= 100;
@@ -66,7 +60,7 @@ pub fn parse(line: []const u8) !Self {
     // Fülle alle gelesenen Dinge in ein array mit , als delimiter
     while (contains(leftover, ",")) |pos| {
         data[index] = leftover[0..pos];
-        leftover = leftover[pos + 1..];
+        leftover = leftover[pos + 1 ..];
         index += 1;
     }
 
@@ -91,4 +85,44 @@ pub fn parse(line: []const u8) !Self {
         return error.WrongFormat;
     };
     return self;
+}
+
+fn calculateBudgetDiff(oldBalance: f32, newBalance: f32, ratio: f32) f32 {
+    const diff = newBalance - oldBalance;
+
+    if (diff < 0) {
+        // Spendings get taken from the budget
+        return diff;
+    } else {
+        // The new budget is the income times the current ratio
+        return diff * ratio;
+    }
+}
+
+test "100 income" {
+    const testBalanceOld = 100;
+    const testBalanceNew = 200;
+
+    var diff = calculateBudgetDiff(testBalanceOld, testBalanceNew, 0.5);
+    try expect(diff == 50);
+
+    diff = calculateBudgetDiff(testBalanceOld, testBalanceNew, 0.1);
+    try expect(diff == 10);
+
+    diff = calculateBudgetDiff(testBalanceOld, testBalanceNew, 0.9);
+    try expect(diff == 90);
+}
+
+test "100 spending" {
+    const testBalanceOld = 200;
+    const testBalanceNew = 100;
+
+    var diff = calculateBudgetDiff(testBalanceOld, testBalanceNew, 0.5);
+    try expect(diff == -100);
+
+    diff = calculateBudgetDiff(testBalanceOld, testBalanceNew, 0.1);
+    try expect(diff == -100);
+
+    diff = calculateBudgetDiff(testBalanceOld, testBalanceNew, 0.9);
+    try expect(diff == -100);
 }

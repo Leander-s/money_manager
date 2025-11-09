@@ -1,7 +1,7 @@
 const std = @import("std");
 const fs = std.fs;
 
-const contains = @import("../util.zig").contains;
+const contains = @import("util").contains;
 
 ratio: f32,
 changed: bool,
