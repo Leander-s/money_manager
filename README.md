@@ -1,5 +1,10 @@
 # Money manager
 
+## Config
+A config file is evaluated from ~/.config/money_manager/config. If this file does not exist when
+using the app, it is created automatically with the default values. As of right now, it is the only
+way to change settings. All settings are set in the config file.
+
 ## Enter
 
     money enter <amount>
