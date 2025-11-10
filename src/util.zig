@@ -30,3 +30,7 @@ test "string contains" {
     try expect(contains(testStr, sucTest).? == 3);
     try expect(contains(testStr, failTest) == null);
 }
+
+test "fail" {
+    try expect(false);
+}

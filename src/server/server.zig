@@ -1,4 +1,4 @@
-const Data = @import("../data/data.zig");
+const Data = @import("data");
 
 const std = @import("std");
 const Server = std.net.Server;

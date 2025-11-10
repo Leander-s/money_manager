@@ -1,7 +1,7 @@
 const std = @import("std");
 const Arg = @import("arg.zig").Arg;
-const Data = @import("data/data.zig");
-const Server = @import("server/server.zig");
+const Data = @import("data");
+const Server = @import("server");
 
 pub fn main() !void {
     var stdout_buffer: [1024]u8 = undefined;
@@ -42,4 +42,8 @@ pub fn main() !void {
     }
 
     try stdout.flush();
+}
+
+test "All tests" {
+    std.testing.refAllDecls(@This());
 }
