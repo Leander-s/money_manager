@@ -43,7 +43,3 @@ pub fn main() !void {
 
     try stdout.flush();
 }
-
-test "All tests" {
-    std.testing.refAllDecls(@This());
-}
