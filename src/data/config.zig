@@ -18,6 +18,7 @@ pub fn load(path: []const u8) !Self {
         self.changed = true;
         return self;
     };
+    defer file.close();
 
     var buffer: [4096]u8 = undefined;
     var reader = file.reader(&buffer);
@@ -52,7 +53,6 @@ fn defaultConfig() Self {
 }
 
 pub fn save(self: *Self, path: []const u8) !void {
-    std.debug.print("Saving config to {s}\n", .{path});
     var base = try std.fs.openDirAbsolute("/", .{});
     defer base.close();
 
@@ -88,4 +88,9 @@ fn parseRatio(line: []const u8) !f32 {
         return error.InvalidFormat;
     };
     return parsedRatio;
+}
+
+pub fn updateRatio(self: *Self, newRatio: f32) void {
+    self.ratio = newRatio;
+    self.changed = true;
 }

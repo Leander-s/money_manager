@@ -3,6 +3,8 @@ const contains = @import("util").contains;
 const LogEntry = @import("logentry.zig");
 const Config = @import("config.zig");
 
+const expect = std.testing.expect;
+
 const configLoc = "/.config/money_manager/config";
 
 budget: f32,
@@ -20,10 +22,11 @@ pub fn init(fileName: []const u8) !Self {
 
     const homeDir = try getHomeDir(self.allocator);
     defer self.allocator.free(homeDir);
-    self.configPath = std.fmt.allocPrint(self.allocator, "{s}{s}", .{homeDir, configLoc}) catch {
+    self.configPath = prependHomeDir(self.allocator, configLoc) catch {
         std.debug.print("Failed to construct config path.\n", .{});
         return error.ConfigPathError;
     };
+    defer self.allocator.free(self.configPath);
 
     self.config = try Config.load(self.configPath);
 
@@ -40,10 +43,12 @@ fn initDefault(self: *Self) !void {
 
 fn parseFile(self: *Self, path: []const u8) !void {
     const file = std.fs.cwd().openFile(path, .{ .mode = .read_only }) catch {
-        _ = try std.fs.cwd().createFile(path, .{});
+        const file = try std.fs.cwd().createFile(path, .{});
+        defer file.close();
         try self.initDefault();
         return;
     };
+    defer file.close();
 
     var buffer: [1024]u8 = undefined;
     var reader = file.reader(&buffer);
@@ -126,6 +131,7 @@ fn getPathToFile(self: *Self, fileName: []const u8) ![]const u8 {
 pub fn write(self: *Self, fileName: []const u8) !void {
     const path = try self.getPathToFile(fileName);
     var file = try std.fs.cwd().createFile(path, .{});
+    defer file.close();
 
     var buffer: [1024]u8 = undefined;
     var writer = file.writer(&buffer);
@@ -189,11 +195,43 @@ fn getHomeDir(allocator: std.mem.Allocator) ![]const u8 {
     var env = std.process.getEnvMap(allocator) catch return error.EnvVarError;
     defer env.deinit();
     if (env.get("HOME")) |home| {
-        std.debug.print("Home dir: {s}\n", .{home});
         return allocator.dupe(u8, home) catch return error.HomePathAllocError;
     }
     if (env.get("USERPROFILE")) |home| {
         return allocator.dupe(u8, home) catch return error.HomePathAllocError;
     }
     return error.HomeNotFound;
+}
+
+fn prependHomeDir(allocator: std.mem.Allocator, path: []const u8) ![]const u8 {
+    const homeDir = try getHomeDir(allocator);
+    defer allocator.free(homeDir);
+    const result = std.fmt.allocPrint(allocator, "{s}{s}", .{homeDir, path}) catch {
+        std.debug.print("Failed to prepend home dir path.\n", .{});
+        return error.PrependHomeDirError;
+    };
+    return result;
+}
+
+test "config test" {
+    const testLoc = "/.config/money_manager/test_config";
+    const testAlloc = std.heap.page_allocator;
+    const testPath = try prependHomeDir(testAlloc, testLoc);
+    defer testAlloc.free(testPath);
+    var config = try Config.load(testPath);
+    try expect(config.changed == true);
+    try expect(config.ratio == 0.5);
+    config.updateRatio(0.3);
+    try config.save(testPath);
+    var newConfig = try Config.load(testPath);
+    try expect(newConfig.changed == false);
+    try expect(newConfig.ratio == 0.3);
+    newConfig.updateRatio(0.5);
+    try expect(newConfig.changed == true);
+    try expect(newConfig.ratio == 0.5);
+    try newConfig.save(testPath);
+    const lastConfig = try Config.load(testPath);
+    try expect(lastConfig.ratio == 0.5);
+    try expect(lastConfig.changed == false);
+    try std.fs.deleteFileAbsolute(testPath);
 }
