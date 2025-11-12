@@ -1,5 +1,6 @@
 const std = @import("std");
 const fs = std.fs;
+const expect = std.testing.expect;
 
 const contains = @import("util").contains;
 
@@ -93,4 +94,9 @@ fn parseRatio(line: []const u8) !f32 {
 pub fn updateRatio(self: *Self, newRatio: f32) void {
     self.ratio = newRatio;
     self.changed = true;
+}
+
+test "find value in config parser" {
+    const value = try findValue("someKey=somevalue");
+    try expect(std.mem.startsWith(u8, value, "somevalue"));
 }
