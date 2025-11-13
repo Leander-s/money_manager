@@ -3,6 +3,7 @@ const fs = std.fs;
 const expect = std.testing.expect;
 
 const contains = @import("util").contains;
+const openFileAbsoluteMakePath = @import("util").openFileAbsoluteMakePath;
 
 ratio: f32,
 changed: bool,
@@ -54,15 +55,7 @@ fn defaultConfig() Self {
 }
 
 pub fn save(self: *Self, path: []const u8) !void {
-    var base = try std.fs.openDirAbsolute("/", .{});
-    defer base.close();
-
-    try base.makePath(std.fs.path.dirname(path) orelse "/");
-
-    var file = std.fs.createFileAbsolute(path, .{}) catch {
-        std.debug.print("Failed to create config file at save.\n", .{});
-        return;
-    };
+    var file = try openFileAbsoluteMakePath(path);
     defer file.close();
 
     var buffer: [1024]u8 = undefined;

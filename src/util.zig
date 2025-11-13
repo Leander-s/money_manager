@@ -22,6 +22,22 @@ pub fn contains(str: []const u8, val: []const u8) ?usize {
     return null;
 }
 
+/// Makes a path to the file location and returns the opened file
+/// File returned needs to be closed by caller
+pub fn openFileAbsoluteMakePath(path: []const u8) !std.fs.File {
+    var base = try std.fs.openDirAbsolute("/", .{});
+    defer base.close();
+
+    // This should get the parent directory of base in orelse
+    try base.makePath(std.fs.path.dirname(path) orelse "/");
+
+    const file = std.fs.createFileAbsolute(path, .{}) catch |e| {
+        std.debug.print("Failed to create config file at save.\n", .{});
+        return e;
+    };
+    return file;
+}
+
 test "string contains" {
     const testStr = "Hello World";
     const sucTest = "lo Wo";
