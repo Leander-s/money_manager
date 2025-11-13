@@ -4,6 +4,7 @@ const LogEntry = @import("logentry.zig");
 const Config = @import("config.zig");
 
 const expect = std.testing.expect;
+const expectEqual = std.testing.expectEqual;
 
 const configLoc = "/.config/money_manager/config";
 
@@ -109,7 +110,7 @@ fn parseOldEntry(self: *Self, line: []const u8) !LogEntry {
         return error.WrongFormat;
     };
 
-    return .{.budget = budget, .balance = balance, .timestamp = timestamp, .ratio = 0.5};
+    return .{ .budget = budget, .balance = balance, .timestamp = timestamp, .ratio = 0.5 };
 }
 
 fn getPathToFile(self: *Self, fileName: []const u8) ![]const u8 {
@@ -176,7 +177,7 @@ pub fn destroy(self: *Self) void {
     self.entries.clearAndFree(self.allocator);
 }
 
-pub fn recalculateBudgets(self: *Self) f32{
+pub fn recalculateBudgets(self: *Self) f32 {
     var index: usize = self.entries.items.len - 1;
     while (true) {
         var entry = self.entries.items[index];
@@ -206,7 +207,7 @@ fn getHomeDir(allocator: std.mem.Allocator) ![]const u8 {
 fn prependHomeDir(allocator: std.mem.Allocator, path: []const u8) ![]const u8 {
     const homeDir = try getHomeDir(allocator);
     defer allocator.free(homeDir);
-    const result = std.fmt.allocPrint(allocator, "{s}{s}", .{homeDir, path}) catch {
+    const result = std.fmt.allocPrint(allocator, "{s}{s}", .{ homeDir, path }) catch {
         std.debug.print("Failed to prepend home dir path.\n", .{});
         return error.PrependHomeDirError;
     };
@@ -219,19 +220,19 @@ test "config test" {
     const testPath = try prependHomeDir(testAlloc, testLoc);
     defer testAlloc.free(testPath);
     var config = try Config.load(testPath);
-    try expect(config.changed == true);
-    try expect(config.ratio == 0.5);
+    try expectEqual(true, config.changed);
+    try expectEqual(0.5, config.ratio);
     config.updateRatio(0.3);
     try config.save(testPath);
     var newConfig = try Config.load(testPath);
-    try expect(newConfig.changed == false);
-    try expect(newConfig.ratio == 0.3);
+    try expectEqual(false, newConfig.changed);
+    try expectEqual(0.3, newConfig.ratio);
     newConfig.updateRatio(0.5);
-    try expect(newConfig.changed == true);
-    try expect(newConfig.ratio == 0.5);
+    try expectEqual(true, newConfig.changed);
+    try expectEqual(0.5, newConfig.ratio);
     try newConfig.save(testPath);
     const lastConfig = try Config.load(testPath);
-    try expect(lastConfig.ratio == 0.5);
-    try expect(lastConfig.changed == false);
+    try expectEqual(0.5, lastConfig.ratio);
+    try expectEqual(false, lastConfig.changed);
     try std.fs.deleteFileAbsolute(testPath);
 }
