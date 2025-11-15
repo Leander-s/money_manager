@@ -1,19 +1,36 @@
 const std = @import("std");
 const fs = std.fs;
 const expect = std.testing.expect;
+const AutoHashMap = std.AutoHashMap;
 
 const contains = @import("util").contains;
 const openFileAbsoluteMakePath = @import("util").openFileAbsoluteMakePath;
 
 const Parser = *const fn (self: *Self, value: []const u8) anyerror!void;
 
-const configValueMap = std.StaticStringMap(Parser).initComptime(.{
-    .{ "ratio", parseRatio },
+const configKey = enum {
+    ratio,
+};
+
+pub const configKeyMap = std.StaticStringMap(configKey).initComptime(.{
+    .{ "ratio", .ratio},
 });
 
-const ConfigEntry = struct {
-    key: []const u8,
+
+pub const ConfigEntry = struct {
+    key: configKey,
     value: []const u8,
+
+    pub fn parseEntry(line: []const u8) !ConfigEntry {
+        const eqIndex = contains(line, "=") orelse return error.InvalidFormat;
+        const value = line[eqIndex + 1 ..];
+        const key = line[0..eqIndex];
+        var result: ConfigEntry = undefined;
+        const keyString = std.mem.trim(u8, key, " \t\n");
+        result.key = configKeyMap.get(keyString) orelse return error.InvalidFormat;
+        result.value = std.mem.trim(u8, value, " \t\n");
+        return result;
+    }
 };
 
 ratio: f32,
@@ -43,6 +60,9 @@ pub fn load(path: []const u8) !Self {
 fn parseConfigFile(self: *Self, file: *const std.fs.File) !void {
     var buffer: [4096]u8 = undefined;
     var reader = file.reader(&buffer);
+    const allocator = std.heap.page_allocator;
+    const configValueMap = AutoHashMap(configKey, Parser).init(allocator);
+    configValueMap.put(.ratio, parseRatio);
 
     while (true) {
         const line = reader.interface.takeDelimiterExclusive('\n') catch {
@@ -52,7 +72,7 @@ fn parseConfigFile(self: *Self, file: *const std.fs.File) !void {
         // skip \n
         try reader.seekBy(1);
 
-        const entry = parseEntry(line) catch {
+        const entry = ConfigEntry.parseEntry(line) catch {
             std.debug.print("Failed to find value in config line, using default.\n", .{});
             continue;
         };
@@ -83,16 +103,6 @@ pub fn save(self: *Self, path: []const u8) !void {
     try writer.interface.flush();
 }
 
-fn parseEntry(line: []const u8) !ConfigEntry {
-    const eqIndex = contains(line, "=") orelse return error.InvalidFormat;
-    const value = line[eqIndex + 1 ..];
-    const key = line[0..eqIndex];
-    var result: ConfigEntry = undefined;
-    result.key = std.mem.trim(u8, key, " \t\n");
-    result.value = std.mem.trim(u8, value, " \t\n");
-    return result;
-}
-
 fn parseRatio(self: *Self, line: []const u8) !void {
     const parsedRatio = std.fmt.parseFloat(f32, line) catch {
         std.debug.print("Failed to parse ratio from config, using default.\n", .{});
@@ -107,7 +117,7 @@ pub fn updateRatio(self: *Self, newRatio: f32) void {
 }
 
 test "find value in config parser" {
-    const entry = try parseEntry(" someKey = somevalue\n");
+    const entry = try ConfigEntry.parseEntry(" someKey = somevalue\n");
     try expect(std.mem.startsWith(u8, entry.value, "somevalue"));
-    try expect(std.mem.startsWith(u8, entry.key, "someKey"));
+    try expect(entry.key == .ratio);
 }

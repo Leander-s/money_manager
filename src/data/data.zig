@@ -1,7 +1,7 @@
 const std = @import("std");
 const contains = @import("util").contains;
 const LogEntry = @import("logentry.zig");
-const Config = @import("config.zig");
+pub const Config = @import("config.zig");
 
 const expect = std.testing.expect;
 const expectEqual = std.testing.expectEqual;

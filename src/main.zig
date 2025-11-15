@@ -9,6 +9,7 @@ pub fn main() !void {
     const stdout = &stdout_writer.interface;
 
     var args = std.process.args();
+    // skipping the exe name
     _ = args.skip();
 
     const arg = Arg.parse(args.next());
