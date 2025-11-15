@@ -42,10 +42,7 @@ pub fn run(ip: [4]u8, port: u16) !void {
 
 fn handleRequest(conn: *Connection) !void {
     defer conn.stream.close();
-    var addressBuf: [64]u8 = undefined;
-    var addressWriter = std.io.Writer.fixed(&addressBuf);
-    try conn.address.in.format(&addressWriter);
-    std.debug.print("Request from {s}\n", .{addressWriter.buffered()});
+    try printAddress(conn);
 
     var recBuf: [4096]u8 = undefined;
     var sendBuf: [4096]u8 = undefined;
@@ -61,6 +58,13 @@ fn handleRequest(conn: *Connection) !void {
     self.data.write("log") catch {
         std.log.err("Failed to write data to log", .{});
     };
+}
+
+fn printAddress(conn: *Connection) !void {
+    var addressBuf: [64]u8 = undefined;
+    var addressWriter = std.io.Writer.fixed(&addressBuf);
+    try conn.address.in.format(&addressWriter);
+    std.debug.print("Request from {s}\n", .{addressWriter.buffered()});
 }
 
 fn route(self: *Self, req: *http.Server.Request) !void {
