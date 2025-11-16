@@ -61,8 +61,8 @@ fn parseConfigFile(self: *Self, file: *const std.fs.File) !void {
     var buffer: [4096]u8 = undefined;
     var reader = file.reader(&buffer);
     const allocator = std.heap.page_allocator;
-    const configValueMap = AutoHashMap(configKey, Parser).init(allocator);
-    configValueMap.put(.ratio, parseRatio);
+    var configValueMap = AutoHashMap(configKey, Parser).init(allocator);
+    try configValueMap.put(.ratio, parseRatio);
 
     while (true) {
         const line = reader.interface.takeDelimiterExclusive('\n') catch {
@@ -111,13 +111,18 @@ fn parseRatio(self: *Self, line: []const u8) !void {
     self.ratio = parsedRatio;
 }
 
-pub fn updateRatio(self: *Self, newRatio: f32) void {
-    self.ratio = newRatio;
+pub fn updateEntry(self: *Self, configEntry: *const ConfigEntry) !void {
+    switch (configEntry.key) {
+        .ratio => {
+            const value = std.fmt.parseFloat(f32, configEntry.value) catch return error.InvalidValue;
+            self.ratio = value;
+        }
+    }
     self.changed = true;
 }
 
 test "find value in config parser" {
-    const entry = try ConfigEntry.parseEntry(" someKey = somevalue\n");
-    try expect(std.mem.startsWith(u8, entry.value, "somevalue"));
+    const entry = try ConfigEntry.parseEntry(" ratio = 0.1\n");
+    try expect(std.mem.startsWith(u8, entry.value, "0.1"));
     try expect(entry.key == .ratio);
 }

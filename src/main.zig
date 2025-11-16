@@ -12,18 +12,21 @@ pub fn main() !void {
     // skipping the exe name
     _ = args.skip();
 
-    const arg = Arg.parse(args.next());
-    const argString = args.next() orelse "0";
-    const argNumber = std.fmt.parseFloat(f32, argString) catch {
-        try stdout.print("Not a valid argument\n", .{});
-        try stdout.flush();
-        return;
-    };
+    const arg = Arg.parse(&args);
 
     var data: Data = try Data.init("log");
 
-    const result: ?f32 = switch (arg) {
-        .enter => try data.enter(argNumber),
+    const result: ?f32 = switch (arg.command) {
+        .enter => if (arg.value) |value| try data.enter(value) else null,
+        .config => blk: {
+            if (arg.configEntry) |configEntry| {
+                try data.config.updateEntry(&configEntry);
+                break :blk data.read();
+            } else {
+                std.debug.print("Not a valid config entry\n", .{});
+                return error.InvalidFormat;
+            }
+        },
         .read => data.read(),
         .reset => data.reset(),
         .recalculate => data.recalculateBudgets(),

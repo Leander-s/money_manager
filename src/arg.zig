@@ -18,10 +18,10 @@ pub const Arg = struct {
     value: ?f32,
     configEntry: ?ConfigEntry,
 
-    pub fn parse(args: ArgIterator) Arg {
+    pub fn parse(args: *ArgIterator) Arg {
         var self: Arg = .{ .command = .unknown, .value = null, .configEntry = null };
-        const arg = args.next();
-        const commandMap = comptime std.StaticStringMap(Arg).initComptime(.{
+        var arg = args.next();
+        const commandMap = comptime std.StaticStringMap(Command).initComptime(.{
             .{ "enter", .enter },
             .{ "read", .read },
             .{ "reset", .reset },
@@ -33,17 +33,19 @@ pub const Arg = struct {
         });
 
         self.command = commandMap.get(arg orelse "") orelse return self;
+        arg = args.next();
         switch (self.command) {
-            .runServer, .unknown, .reset, .read, .recalculate => return self,
             .enter => {
-                self.value = std.fmt.parseFloat(f32, arg) catch return self;
+                const value = arg orelse return self;
+                self.value = std.fmt.parseFloat(f32, value) catch return self;
                 return self;
             },
             .config => {
-                const key = ConfigKeyMap.get(arg) orelse return self;
-                const value = args.next();
-                const configEntry: ConfigEntry = .{ .key = key, .value = value };
+                const entryStr = arg orelse return self;
+                self.configEntry = ConfigEntry.parseEntry(entryStr) catch return self;
+                return self;
             },
+            else => return self,
         }
     }
 };

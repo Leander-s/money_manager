@@ -27,7 +27,6 @@ pub fn init(fileName: []const u8) !Self {
         std.debug.print("Failed to construct config path.\n", .{});
         return error.ConfigPathError;
     };
-    defer self.allocator.free(self.configPath);
 
     self.config = try Config.load(self.configPath);
 
@@ -174,6 +173,7 @@ pub fn reset(self: *Self) f32 {
 }
 
 pub fn destroy(self: *Self) void {
+    self.allocator.free(self.configPath);
     self.entries.clearAndFree(self.allocator);
 }
 
@@ -222,12 +222,12 @@ test "config test" {
     var config = try Config.load(testPath);
     try expectEqual(true, config.changed);
     try expectEqual(0.5, config.ratio);
-    config.updateRatio(0.3);
+    try config.updateEntry(&.{ .key = .ratio, .value = "0.3" });
     try config.save(testPath);
     var newConfig = try Config.load(testPath);
     try expectEqual(false, newConfig.changed);
     try expectEqual(0.3, newConfig.ratio);
-    newConfig.updateRatio(0.5);
+    try newConfig.updateEntry(&.{ .key = .ratio, .value = "0.5" });
     try expectEqual(true, newConfig.changed);
     try expectEqual(0.5, newConfig.ratio);
     try newConfig.save(testPath);
