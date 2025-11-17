@@ -156,11 +156,11 @@ pub fn write(self: *Self, fileName: []const u8) !void {
 }
 
 pub fn lastBalance(self: *Self) f32 {
-    self.balance;
+    return self.balance;
 }
 
 pub fn currentBudget(self: *Self) f32 {
-    self.budget;
+    return self.budget;
 }
 
 pub fn enter(self: *Self, number: f32) !f32 {

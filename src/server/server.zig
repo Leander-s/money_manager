@@ -100,7 +100,7 @@ fn splitTarget(target: []const u8) RequestTarget {
 
 fn budgetGet(self: *Self, req: *http.Server.Request, _: *const RequestTarget, _: std.mem.Allocator) anyerror!void {
     // Placeholder implementation for GET /budget/
-    const budget = self.data.read();
+    const budget = self.data.currentBudget();
     var responseBuf: [1048]u8 = undefined;
     const response = std.fmt.bufPrint(&responseBuf, "Budget is {d}\n", .{budget}) catch {
         try req.respond("Internal Server Error", .{ .status = http.Status.internal_server_error });
