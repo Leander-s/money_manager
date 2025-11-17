@@ -5,7 +5,8 @@ const ConfigKeyMap = @import("data").Config.configKeyMap;
 
 pub const Command = enum {
     enter,
-    read,
+    budget,
+    balance,
     reset,
     recalculate,
     runServer,
@@ -23,7 +24,8 @@ pub const Arg = struct {
         var arg = args.next();
         const commandMap = comptime std.StaticStringMap(Command).initComptime(.{
             .{ "enter", .enter },
-            .{ "read", .read },
+            .{ "budget", .budget},
+            .{ "balance", .balance},
             .{ "reset", .reset },
             .{ "recalculate", .recalculate },
             .{ "run", .runServer },

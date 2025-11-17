@@ -21,13 +21,14 @@ pub fn main() !void {
         .config => blk: {
             if (arg.configEntry) |configEntry| {
                 try data.config.updateEntry(&configEntry);
-                break :blk data.read();
+                break :blk data.currentBudget();
             } else {
                 std.debug.print("Not a valid config entry\n", .{});
                 return error.InvalidFormat;
             }
         },
-        .read => data.read(),
+        .budget => data.currentBudget(),
+        .balance => data.lastBalance(),
         .reset => data.reset(),
         .recalculate => data.recalculateBudgets(),
         .runServer => blk: {

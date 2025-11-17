@@ -11,9 +11,9 @@ way to change settings. All settings are set in the config file.
 
 This enters a bank account state into the data.
 
-## Read
+## Read current budget
 
-    money read
+    money budget 
 
 This prints how much money you currently have available for spending according to the amounts you 
 entered and your configured saving habit. Default is half you earn goes to available money, half to 

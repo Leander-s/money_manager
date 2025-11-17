@@ -9,6 +9,7 @@ const expectEqual = std.testing.expectEqual;
 const configLoc = "/.config/money_manager/config";
 
 budget: f32,
+balance: f32,
 allocator: std.mem.Allocator,
 entries: std.ArrayList(LogEntry),
 config: Config,
@@ -37,6 +38,7 @@ pub fn init(fileName: []const u8) !Self {
 }
 
 fn initDefault(self: *Self) !void {
+    self.balance = 0;
     self.budget = 0;
     self.entries = std.ArrayList(LogEntry).empty;
 }
@@ -80,8 +82,10 @@ fn parseFile(self: *Self, path: []const u8) !void {
     }
 
     // if there is a budget -> assign it for quick read op
-    if (self.entries.items.len > 0)
+    if (self.entries.items.len > 0) {
         self.budget = self.entries.items[0].budget;
+        self.balance = self.entries.items[0].balance;
+    }
 }
 
 fn parseOldEntry(self: *Self, line: []const u8) !LogEntry {
@@ -151,8 +155,12 @@ pub fn write(self: *Self, fileName: []const u8) !void {
     }
 }
 
-pub fn read(self: *Self) f32 {
-    return self.budget;
+pub fn lastBalance(self: *Self) f32 {
+    self.balance;
+}
+
+pub fn currentBudget(self: *Self) f32 {
+    self.budget;
 }
 
 pub fn enter(self: *Self, number: f32) !f32 {
@@ -163,12 +171,14 @@ pub fn enter(self: *Self, number: f32) !f32 {
     const newEntry = LogEntry.init(lastEntry, number, self.config.ratio);
     try self.entries.insert(self.allocator, 0, newEntry);
     self.budget = newEntry.budget;
+    self.balance = number;
     return self.budget;
 }
 
 pub fn reset(self: *Self) f32 {
     self.entries.clearAndFree(self.allocator);
     self.budget = 0;
+    self.balance = 0;
     return 0;
 }
 
@@ -189,6 +199,7 @@ pub fn recalculateBudgets(self: *Self) f32 {
         index -= 1;
     }
     self.budget = self.entries.items[0].budget;
+    self.balance = self.entries.items[0].balance;
     return self.budget;
 }
 
