@@ -5,6 +5,10 @@ A config file is evaluated from ~/.config/money_manager/config. If this file doe
 using the app, it is created automatically with the default values. As of right now, it is the only
 way to change settings. All settings are set in the config file.
 
+### CLI to change config
+
+    money config <key>=<value>
+
 ## Enter
 
     money enter <amount>
@@ -18,6 +22,12 @@ This enters a bank account state into the data.
 This prints how much money you currently have available for spending according to the amounts you 
 entered and your configured saving habit. Default is half you earn goes to available money, half to 
 savings.
+
+## Read last balance
+
+    money balance
+
+This prints the amount you entered last.
 
 ## Reset
 

@@ -1,6 +1,6 @@
 # TODO
 
-- make http server and config code cleaner
+- Need to be able to change ratios for old entries?
 - deploy on raspberrypi with github actions
 - implement a cli client to update state on raspberrypi
 - implement userDatabase and store log for every user
