@@ -175,11 +175,10 @@ pub fn enter(self: *Self, number: f32) !f32 {
     return self.budget;
 }
 
-pub fn reset(self: *Self) f32 {
+pub fn reset(self: *Self) void {
     self.entries.clearAndFree(self.allocator);
     self.budget = 0;
     self.balance = 0;
-    return 0;
 }
 
 pub fn destroy(self: *Self) void {

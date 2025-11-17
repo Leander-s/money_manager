@@ -1,7 +1,29 @@
 const std = @import("std");
+const Writer = std.Io.Writer;
 const Arg = @import("arg.zig").Arg;
+const Command = @import("arg.zig").Command;
 const Data = @import("data");
 const Server = @import("server");
+const EnumMap = std.enums.EnumMap;
+const StaticStringMap = std.StaticStringMap;
+
+const Context = struct {
+    stdout: *Writer,
+    data: *Data,
+    args: *const Arg,
+};
+
+const Handler = *const fn (*Context) anyerror![]const u8;
+
+const handlerMap = StaticStringMap(Handler).initComptime(.{
+    .{ "enter", handleEnter },
+    .{ "budget", handleBudget },
+    .{ "balance", handleBalance },
+    .{ "config", handleConfig },
+    .{ "reset", handleReset },
+    .{ "recalculate", handleRecalculate },
+    .{ "run", handleRun },
+});
 
 pub fn main() !void {
     var stdout_buffer: [1024]u8 = undefined;
@@ -16,6 +38,7 @@ pub fn main() !void {
 
     var data: Data = try Data.init("log");
 
+    const handler = handlerMap.get(arg.command) orelse handleInvalid;
     const result: ?f32 = switch (arg.command) {
         .enter => if (arg.value) |value| try data.enter(value) else null,
         .config => blk: {
@@ -23,6 +46,7 @@ pub fn main() !void {
                 try data.config.updateEntry(&configEntry);
                 break :blk data.currentBudget();
             } else {
+                stdout.print("{d}\n", .{});
                 std.debug.print("Not a valid config entry\n", .{});
                 return error.InvalidFormat;
             }
@@ -47,4 +71,55 @@ pub fn main() !void {
     }
 
     try stdout.flush();
+}
+
+fn handleEnter(ctx: *Context) !void {
+    const args = ctx.args;
+    var data = ctx.data;
+    if (!args.value) return error.InvalidArgument;
+    const budget: f32 = try data.enter(args.value.?);
+    try ctx.stdout.print("{d}\n", .{budget});
+}
+
+fn handleBudget(ctx: *Context) !void {
+    var data = ctx.data;
+    const budget: f32 = try data.currentBudget();
+    try ctx.stdout.print("{d}\n", .{budget});
+}
+
+fn handleBalance(ctx: *Context) !void {
+    var data = ctx.data;
+    const balance: f32 = try data.lastBalance();
+    try ctx.stdout.print("{d}\n", .{balance});
+}
+
+fn handleConfig(ctx: *Context) !void {
+    const args = ctx.args;
+    var data = ctx.data;
+    if (args.configEntry) |configEntry| {
+        try data.config.updateEntry(&configEntry);
+    } else {
+        try ctx.stdout.print("Not a valid config entry\n", .{});
+        return error.InvalidArgument;
+    }
+}
+
+fn handleReset(ctx: *Context) !void {
+    ctx.data.reset();
+    try ctx.stdout.print("Data was reset\n", .{});
+}
+
+fn handleRecalculate(ctx: *Context) !void {
+    ctx.data.recalculateBudgets();
+}
+
+fn handleRun(ctx: *Context) !void {
+    const address: [4]u8 = .{ 127, 0, 0, 1 };
+    const port = 8080;
+    try ctx.stdout.print("Running server on {s}:{d}\n", .{address, port});
+    try Server.run(address, port);
+}
+
+fn handleInvalid(ctx: *Context) void {
+    try ctx.stdout.print("Invalid argument given\n");
 }
