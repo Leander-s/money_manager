@@ -4,7 +4,6 @@ const Arg = @import("arg.zig").Arg;
 const Command = @import("arg.zig").Command;
 const Data = @import("data");
 const Server = @import("server");
-const EnumMap = std.enums.EnumMap;
 const StaticStringMap = std.StaticStringMap;
 
 const Context = struct {
@@ -13,7 +12,7 @@ const Context = struct {
     args: *const Arg,
 };
 
-const Handler = *const fn (*Context) anyerror![]const u8;
+const Handler = *const fn (*Context) anyerror!void;
 
 const handlerMap = StaticStringMap(Handler).initComptime(.{
     .{ "enter", handleEnter },
@@ -22,7 +21,7 @@ const handlerMap = StaticStringMap(Handler).initComptime(.{
     .{ "config", handleConfig },
     .{ "reset", handleReset },
     .{ "recalculate", handleRecalculate },
-    .{ "run", handleRun },
+    .{ "host", handleHost },
 });
 
 pub fn main() !void {
@@ -39,69 +38,45 @@ pub fn main() !void {
     var data: Data = try Data.init("log");
 
     const handler = handlerMap.get(arg.command) orelse handleInvalid;
-    const result: ?f32 = switch (arg.command) {
-        .enter => if (arg.value) |value| try data.enter(value) else null,
-        .config => blk: {
-            if (arg.configEntry) |configEntry| {
-                try data.config.updateEntry(&configEntry);
-                break :blk data.currentBudget();
-            } else {
-                stdout.print("{d}\n", .{});
-                std.debug.print("Not a valid config entry\n", .{});
-                return error.InvalidFormat;
-            }
-        },
-        .budget => data.currentBudget(),
-        .balance => data.lastBalance(),
-        .reset => data.reset(),
-        .recalculate => data.recalculateBudgets(),
-        .runServer => blk: {
-            try Server.run(.{ 127, 0, 0, 1 }, 8080);
-            break :blk null;
-        },
-        .noArg, .unknown => null,
+    var context: Context = .{ .data = &data, .args = &arg, .stdout = stdout };
+    handler(&context) catch {
+        try stdout.print("No valid argument given\n", .{});
     };
 
-    if (result) |value| {
-        try data.write("log");
-        data.destroy();
-        try stdout.print("{d}\n", .{value});
-    } else {
-        try stdout.print("No valid argument given\n", .{});
-    }
+    try data.write("log");
+    data.destroy();
 
     try stdout.flush();
 }
 
-fn handleEnter(ctx: *Context) !void {
+fn handleEnter(ctx: *Context) anyerror!void {
     const args = ctx.args;
     var data = ctx.data;
-    if (!args.value) return error.InvalidArgument;
-    const budget: f32 = try data.enter(args.value.?);
+    const value = args.value orelse return error.InvalidArgument;
+    const budget: f32 = try data.enter(value);
     try ctx.stdout.print("{d}\n", .{budget});
 }
 
 fn handleBudget(ctx: *Context) !void {
     var data = ctx.data;
-    const budget: f32 = try data.currentBudget();
+    const budget: f32 = data.currentBudget();
     try ctx.stdout.print("{d}\n", .{budget});
 }
 
 fn handleBalance(ctx: *Context) !void {
     var data = ctx.data;
-    const balance: f32 = try data.lastBalance();
+    const balance: f32 = data.lastBalance();
     try ctx.stdout.print("{d}\n", .{balance});
 }
 
 fn handleConfig(ctx: *Context) !void {
     const args = ctx.args;
     var data = ctx.data;
-    if (args.configEntry) |configEntry| {
-        try data.config.updateEntry(&configEntry);
-    } else {
+    const configEntry = args.configEntry orelse {
         try ctx.stdout.print("Not a valid config entry\n", .{});
         return error.InvalidArgument;
-    }
+    };
+    try data.config.updateEntry(&configEntry);
 }
 
 fn handleReset(ctx: *Context) !void {
@@ -110,16 +85,17 @@ fn handleReset(ctx: *Context) !void {
 }
 
 fn handleRecalculate(ctx: *Context) !void {
-    ctx.data.recalculateBudgets();
+    const budget: f32 = ctx.data.recalculateBudgets();
+    try ctx.stdout.print("{d}\n", .{budget});
 }
 
-fn handleRun(ctx: *Context) !void {
+fn handleHost(ctx: *Context) !void {
     const address: [4]u8 = .{ 127, 0, 0, 1 };
     const port = 8080;
-    try ctx.stdout.print("Running server on {s}:{d}\n", .{address, port});
+    try ctx.stdout.print("Running server on {s}:{d}\n", .{ address, port });
     try Server.run(address, port);
 }
 
-fn handleInvalid(ctx: *Context) void {
-    try ctx.stdout.print("Invalid argument given\n");
+fn handleInvalid(ctx: *Context) !void {
+    try ctx.stdout.print("Invalid argument given\n", .{});
 }

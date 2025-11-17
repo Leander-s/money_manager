@@ -9,23 +9,21 @@ pub const Arg = struct {
     configEntry: ?ConfigEntry,
 
     pub fn parse(args: *ArgIterator) Arg {
-        var self: Arg = .{ .command = .unknown, .value = null, .configEntry = null };
-        var arg = args.next();
+        var self: Arg = .{ .command = "unknown", .value = null, .configEntry = null };
+        var arg = args.next(); // No arguments should start client in future
 
-        self.command = arg;
+        self.command = arg orelse return self;
         arg = args.next();
-        switch (self.command) {
-            .enter => {
-                const value = arg orelse return self;
-                self.value = std.fmt.parseFloat(f32, value) catch return self;
-                return self;
-            },
-            .config => {
-                const entryStr = arg orelse return self;
-                self.configEntry = ConfigEntry.parseEntry(entryStr) catch return self;
-                return self;
-            },
-            else => return self,
+        if (std.mem.startsWith(u8, self.command, "enter")) {
+            const value = arg orelse return self;
+            self.value = std.fmt.parseFloat(f32, value) catch return self;
+            return self;
+        } else if (std.mem.startsWith(u8, self.command, "config")) {
+            const entryStr = arg orelse return self;
+            self.configEntry = ConfigEntry.parseEntry(entryStr) catch return self;
+            return self;
+        } else {
+            return self;
         }
     }
 };

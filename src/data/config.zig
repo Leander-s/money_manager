@@ -13,9 +13,12 @@ const configKey = enum {
 };
 
 pub const configKeyMap = std.StaticStringMap(configKey).initComptime(.{
-    .{ "ratio", .ratio},
+    .{ "ratio", .ratio },
 });
 
+const configValueMap = std.EnumArray(configKey, Parser).init(.{
+    .ratio = parseRatio,
+});
 
 pub const ConfigEntry = struct {
     key: configKey,
@@ -60,9 +63,6 @@ pub fn load(path: []const u8) !Self {
 fn parseConfigFile(self: *Self, file: *const std.fs.File) !void {
     var buffer: [4096]u8 = undefined;
     var reader = file.reader(&buffer);
-    const allocator = std.heap.page_allocator;
-    var configValueMap = AutoHashMap(configKey, Parser).init(allocator);
-    try configValueMap.put(.ratio, parseRatio);
 
     while (true) {
         const line = reader.interface.takeDelimiterExclusive('\n') catch {
@@ -77,7 +77,7 @@ fn parseConfigFile(self: *Self, file: *const std.fs.File) !void {
             continue;
         };
 
-        const parser = configValueMap.get(entry.key) orelse continue;
+        const parser = configValueMap.get(entry.key);
         try parser(self, entry.value);
     }
 }
@@ -116,7 +116,7 @@ pub fn updateEntry(self: *Self, configEntry: *const ConfigEntry) !void {
         .ratio => {
             const value = std.fmt.parseFloat(f32, configEntry.value) catch return error.InvalidValue;
             self.ratio = value;
-        }
+        },
     }
     self.changed = true;
 }
