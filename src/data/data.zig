@@ -1,10 +1,10 @@
 const std = @import("std");
+const expect = std.testing.expect;
+const expectEqual = std.testing.expectEqual;
+
 const contains = @import("util").contains;
 const LogEntry = @import("logentry.zig");
 pub const Config = @import("config.zig");
-
-const expect = std.testing.expect;
-const expectEqual = std.testing.expectEqual;
 
 const configLoc = "/.config/money_manager/config";
 
@@ -44,8 +44,8 @@ fn initDefault(self: *Self) !void {
 }
 
 fn parseFile(self: *Self, path: []const u8) !void {
-    const file = std.fs.cwd().openFile(path, .{ .mode = .read_only }) catch {
-        const file = try std.fs.cwd().createFile(path, .{});
+    const file = std.fs.openFileAbsolute(path, .{ .mode = .read_only }) catch {
+        const file = try std.fs.createFileAbsolute(path, .{});
         defer file.close();
         try self.initDefault();
         return;
@@ -67,18 +67,12 @@ fn parseFile(self: *Self, path: []const u8) !void {
         if (contains(line, "budget") != null)
             continue;
 
-        // parsing line in current log version
-        if (contains(line, ",") != null) {
-            try self.entries.append(self.allocator, try LogEntry.parse(line));
-            continue;
-        }
+        // if there is no "," in the line, the format is wrong
+        if (contains(line, ",") == null)
+            return error.WrongFormat;
 
-        // parsing old version
-        const newEntry = self.parseOldEntry(line) catch {
-            // budget line
-            continue;
-        };
-        try self.entries.append(self.allocator, newEntry);
+        // parsing line
+        try self.entries.append(self.allocator, try LogEntry.parse(line));
     }
 
     // if there is a budget -> assign it for quick read op
@@ -86,34 +80,6 @@ fn parseFile(self: *Self, path: []const u8) !void {
         self.budget = self.entries.items[0].budget;
         self.balance = self.entries.items[0].balance;
     }
-}
-
-fn parseOldEntry(self: *Self, line: []const u8) !LogEntry {
-    var budgetString: []const u8 = undefined;
-    var balanceString: []const u8 = undefined;
-    var timestampString: []const u8 = undefined;
-
-    if (contains(line, ":")) |index| {
-        budgetString = "0";
-        balanceString = line[0..index];
-        timestampString = line[index + 1 .. line.len];
-    } else {
-        self.budget = try std.fmt.parseFloat(f32, line);
-        return error.NoLine;
-    }
-
-    // parsing numbers
-    const budget = std.fmt.parseFloat(f32, budgetString) catch {
-        return error.WrongFormat;
-    };
-    const balance = std.fmt.parseFloat(f32, balanceString) catch {
-        return error.WrongFormat;
-    };
-    const timestamp = std.fmt.parseInt(i64, timestampString, 10) catch {
-        return error.WrongFormat;
-    };
-
-    return .{ .budget = budget, .balance = balance, .timestamp = timestamp, .ratio = 0.5 };
 }
 
 fn getPathToFile(self: *Self, fileName: []const u8) ![]const u8 {
@@ -134,7 +100,7 @@ fn getPathToFile(self: *Self, fileName: []const u8) ![]const u8 {
 
 pub fn write(self: *Self, fileName: []const u8) !void {
     const path = try self.getPathToFile(fileName);
-    var file = try std.fs.cwd().createFile(path, .{});
+    var file = try std.fs.createFileAbsolute(path, .{});
     defer file.close();
 
     var buffer: [1024]u8 = undefined;
@@ -245,4 +211,15 @@ test "config test" {
     try expectEqual(0.5, lastConfig.ratio);
     try expectEqual(false, lastConfig.changed);
     try std.fs.deleteFileAbsolute(testPath);
+}
+
+test "writing log" {
+    var data = try Self.init("testLog");
+    const entryTime = std.time.timestamp();
+    _ = try data.enter(1000);
+    try data.write("testLog");
+    data.destroy();
+    const otherData = try Self.init("testLog");
+    const otherTime = otherData.entries.items[0].timestamp.timestamp;
+    try expectEqual(entryTime, otherTime);
 }
