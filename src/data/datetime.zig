@@ -65,7 +65,9 @@ pub fn ISO8601(self: *const Self) ![]const u8 {
     }
 
     var buffer: [20]u8 = undefined;
-    return try std.fmt.bufPrint(&buffer, "{d}-{d}-{d}T{d}:{d}:{d}Z", .{ year, month, day, hours, minutes, seconds });
+
+    const string = try std.fmt.bufPrint(buffer[0..], "{d:0>4}-{d:0>2}-{d:0>2}T{d:0>2}:{d:0>2}:{d:0>2}Z", .{ @as(u32, @intCast(year)), @as(u32, @intCast(month)), @as(u32, @intCast(day)), @as(u32, @intCast(hours)), @as(u32, @intCast(minutes)), @as(u32, @intCast(seconds)) });
+    return string;
 }
 
 fn calculateDays(year: i64, month: i64, day: i64) i64 {
