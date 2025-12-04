@@ -1,7 +1,7 @@
 package main
 
-import "fmt"
-
 func main() {
-	fmt.Println("Running")
+	app := initServer()
+	app.runServer()
+	app.deInitServer()
 }
