@@ -1,4 +1,4 @@
-package main
+package model
 
 import (
 	"context"
@@ -9,12 +9,18 @@ import (
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
-func openDB(dataSourceName string) (*sql.DB, error) {
+type Database struct {
+	DB *sql.DB
+}
+
+func OpenDB(dataSourceName string) (Database, error) {
+	result := Database{DB: nil}
 	db, err := sql.Open("pgx", dataSourceName)
 	fmt.Println("Database source name:", dataSourceName)
 	if err != nil {
-		return nil, fmt.Errorf("failed to open database: %w", err)
+		return result, fmt.Errorf("failed to open database: %w", err)
 	}
+	result.DB = db
 
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
@@ -29,13 +35,22 @@ func openDB(dataSourceName string) (*sql.DB, error) {
 			fmt.Println("Waiting for database to be ready...")
 		} else {
 			fmt.Println("Database is ready!")
-			return db, nil
+			return result, nil
 		}
 
 		select {
 		case <-ctx.Done():
-			return nil, fmt.Errorf("failed to ping database the %d. time: %w", i, err)
+			result.DB.Close()
+			result.DB = nil
+			return result, fmt.Errorf("failed to ping database the %d. time: %w", i, err)
 		case <-ticker.C:
 		}
 	}
+}
+
+func (database *Database) Close() error {
+	if database.DB != nil {
+		return database.DB.Close()
+	}
+	return nil
 }

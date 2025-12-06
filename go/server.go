@@ -1,21 +1,23 @@
 package main
 
 import (
+	"strings"
+	"strconv"
 	"fmt"
 	"net/http"
 	"os"
-	"database/sql"
+	"github.com/Leander-s/money_manager/model"
 )
 
 type App struct{
-	db *sql.DB
+	db model.Database
 }
 
 func initServer() (app *App) {
 
 	dsn := os.Getenv("POSTGRES_DSN")
 	fmt.Println("Connecting to database with DSN:", dsn)
-	db, err := openDB(dsn)
+	db, err := model.OpenDB(dsn)
 	if err != nil {
 		fmt.Println("Error connecting to database:", err)
 		panic(err)
@@ -29,12 +31,14 @@ func initServer() (app *App) {
 }
 
 func (app *App) runServer() {
-	http.HandleFunc("/", app.rootHandler)
-	http.HandleFunc("/budget", app.budgetHandler)
-	http.HandleFunc("/balance", app.balanceHandler)
-	http.HandleFunc("/user", app.userHandler)
+	mux := http.NewServeMux()
+	mux.HandleFunc("/", app.rootHandler)
+	mux.HandleFunc("/budget", app.budgetHandler)
+	mux.HandleFunc("/balance", app.balanceHandler)
+	mux.HandleFunc("/user", app.userHandler)
+	mux.HandleFunc("/user/", app.userHandlerByID)
 
-	err := http.ListenAndServe("0.0.0.0:8080", nil)
+	err := http.ListenAndServe("0.0.0.0:8080", mux)
 	if err != nil {
 		fmt.Println("Error starting server:", err)
 		panic(err)
@@ -61,6 +65,38 @@ func (app *App) budgetHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (app *App) userHandler(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("Received user", r.Method, "request from:", r.RemoteAddr)
-	fmt.Fprintln(w, "User Path Accessed with method:", r.Method)
+	switch r.Method {
+	case http.MethodPost:
+		app.handleCreateUser(w, r)
+	case http.MethodGet:
+		app.handleGetUsers(w)
+	default:
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+	}
+}
+
+func (app *App) userHandlerByID(w http.ResponseWriter, r *http.Request) {
+	idStr := strings.TrimPrefix(r.URL.Path, "/user/")
+	if idStr == "" {
+		http.Error(w, "User ID is required", http.StatusBadRequest)
+		return
+	}
+
+	var id int64
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		http.Error(w, "Invalid user ID", http.StatusBadRequest)
+		return
+	}
+
+	switch r.Method {
+	case http.MethodGet:
+		app.handleGetUserByID(w, id)
+	case http.MethodPut:
+		app.handleUpdateUser(w, r, id)
+	case http.MethodDelete:
+		app.handleDeleteUser(w, id)
+	default:
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+	}
 }
