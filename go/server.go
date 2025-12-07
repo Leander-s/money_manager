@@ -38,11 +38,31 @@ func (app *App) runServer() {
 	mux.HandleFunc("/user", app.userHandler)
 	mux.HandleFunc("/user/", app.userHandlerByID)
 
-	err := http.ListenAndServe("0.0.0.0:8080", mux)
+	muxWithCORS := withCORS(mux)
+
+	err := http.ListenAndServe("0.0.0.0:8080", muxWithCORS)
 	if err != nil {
 		fmt.Println("Error starting server:", err)
 		panic(err)
 	}
+}
+
+func withCORS(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// allow your Angular dev server
+		w.Header().Set("Access-Control-Allow-Origin", "http://localhost:4200")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
+		// handle preflight (OPTIONS) requests quickly
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+
+		// pass to your real handler
+		next.ServeHTTP(w, r)
+	})
 }
 
 func (app *App) deInitServer() {

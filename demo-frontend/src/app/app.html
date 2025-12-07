@@ -1,0 +1,21 @@
+<div class="app">
+  <header class="app-header">
+    <h1>Money Manager Test</h1>
+  </header>
+
+  <main class="app-main">
+    <section class="card">
+      <h2>Users List</h2>
+      <button type="button" (click)="refresh()">Refresh</button>
+
+      <p *ngIf="loading">Loading users...</p>
+      <p *ngIf="error" class="error">{{ error }}</p>
+      <ul *ngIf="users.length">
+        <li *ngFor="let user of users">
+          {{ user.name }} ({{ user.email }})
+        </li>
+      </ul>
+    </section>
+  </main>
+</div>
+
