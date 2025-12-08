@@ -6,7 +6,10 @@ import (
 	"net/http"
 
 	"github.com/Leander-s/money_manager/model"
+	"golang.org/x/crypto/bcrypt"
 )
+
+const passwordHashCost = bcrypt.DefaultCost
 
 func (app *App) handleCreateUser(w http.ResponseWriter, r *http.Request) {
 	var u model.User
@@ -14,6 +17,8 @@ func (app *App) handleCreateUser(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid request payload", http.StatusBadRequest)
 		return
 	}
+
+	u.Password = hashPassword(u.Password)
 
 	id, err := app.db.InsertUser(&u)
 	if err != nil {
@@ -82,4 +87,14 @@ func (app *App) handleDeleteUser(w http.ResponseWriter, id int64) {
 
 	w.WriteHeader(http.StatusNoContent)
 	fmt.Println("Deleted user with ID:", id)
+}
+
+func hashPassword(password string) string {
+	// Placeholder for password hashing logic
+	hash, err := bcrypt.GenerateFromPassword([]byte(password), passwordHashCost)
+	if err != nil {
+		fmt.Println("Error hashing password:", err)
+		return ""
+	}
+	return string(hash)
 }

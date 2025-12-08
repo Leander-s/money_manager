@@ -1,0 +1,41 @@
+.user-card {
+  display: flex;
+  flex-direction: row;
+  border-radius: 2px;
+  background-color: transparent;
+  transition: transform 0.2s;
+  margin: 5px;
+}
+
+.user-info {
+  padding: 15px;
+  background-color: #313944;
+  transition: transform 0.2s;
+
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  gap: 100px;
+  width: 100%;
+  height: 100%;
+}
+
+.user-info strong {
+  font-size: 1rem;
+  color: #0077ff;
+}
+
+.user-info span {
+  font-size: 0.9rem;
+  color: #5566ff;
+}
+
+.user-info small {
+  font-size: 0.8rem;
+  color: #ffffff;
+}
+
+.user-info a {
+  font-size: 0.9rem;
+  color: #5566ff;
+}

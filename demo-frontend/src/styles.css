@@ -7,4 +7,23 @@
 
 body {
   margin: 0;
+  font-family: Arial, sans-serif;
+  background-color: #101212;
+  color: #e6e6e6;
+}
+
+.deleteButton {
+  font-size: 1rem;
+  border: 1px solid #dc3545;
+  background-color: transparent;
+  color: #dc3545;
+  border-radius: 2px;
+  cursor: pointer;
+  padding: 0.2rem 0.5rem;
+}
+
+.deleteButton:hover {
+  background-color: #dc3545;
+  color: #fff;
+  transition: all 0.1s ease-in-out;
 }

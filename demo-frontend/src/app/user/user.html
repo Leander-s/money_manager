@@ -1,0 +1,8 @@
+<div class="user-card">
+  <div class="user-info">
+  <strong>{{user.ID}} | {{ user.Username }}</strong>
+  <a href="mailto:{{user.Email}}">{{user.Email}}</a>
+  <small>{{user.CreatedAt}}</small>
+  </div>
+  <button class="deleteButton" type="button" (click)="deleteUser()">Delete</button>
+</div>
