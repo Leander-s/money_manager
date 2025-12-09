@@ -36,10 +36,10 @@ export class App {
     }
 
     const newUser: User = {
-      ID: undefined,
-      Username: this.newUsername,
-      Email: this.newEmail,
-      Password: this.newPassword
+      id: undefined,
+      username: this.newUsername,
+      email: this.newEmail,
+      password: this.newPassword
     };
 
     this.http.post<User>(environment.API_URL + '/user', newUser)
@@ -75,8 +75,8 @@ export class App {
   }
 
   deleteUser(user: User) {
-    if(!user.ID) return;
-    this.http.delete<User>(`${environment.API_URL}/user/${user.ID}`).subscribe({
+    if(!user.id) return;
+    this.http.delete<User>(`${environment.API_URL}/user/${user.id}`).subscribe({
       next: () => {
         this.refresh();
         this.cdr.markForCheck();

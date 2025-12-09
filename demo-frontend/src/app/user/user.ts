@@ -2,11 +2,11 @@ import { Component, Input, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from '@angular/common';
 
 export interface User {
-  ID?: number;
-  Username: string;
-  Email: string;
-  Password: string;
-  CreatedAt?: string;
+  id?: number;
+  username: string;
+  email: string;
+  password: string;
+  created_at?: string;
 }
 
 @Component({

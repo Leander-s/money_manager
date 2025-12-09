@@ -1,0 +1,103 @@
+package main
+
+import (
+	"encoding/json"
+	"errors"
+	"fmt"
+	"github.com/Leander-s/money_manager/model"
+	"github.com/google/uuid"
+	"net/http"
+	"time"
+)
+
+type LoginRequest struct {
+	Email    string `json:"email"`
+	Password string `json:"password"`
+}
+
+func generateToken(userID int64) model.Token {
+	expirationTime := time.Now().Add(24 * time.Hour)
+	return model.Token{
+		UserID: userID,
+		Token:  uuid.New(),
+		Expiry: expirationTime.Unix(),
+	}
+}
+
+func (app *App) validateToken(tokenStr string) (int64, error) {
+	tokenID, err := uuid.Parse(tokenStr)
+	if err != nil {
+		return 0, errors.New("InvalidToken")
+	}
+
+	token, err := app.db.GetToken(tokenID)
+	if err != nil {
+		return 0, errors.New("InvalidToken")
+	}
+
+	expirationTime := time.Unix(token.Expiry, 0)
+	if expirationTime.After(time.Now()) {
+		err := app.db.DeleteToken(token.Token)
+		if err != nil {
+			fmt.Println("Failed to delete token:", err)
+		}
+		return 0, errors.New("TokenExpired")
+	}
+
+	return token.UserID, nil
+}
+
+func (app *App) ValidateUser(email string, password string) (int64, error) {
+	user, err := app.db.GetUserByEmail(email)
+	if err != nil {
+		fmt.Println("Error getting user:", err)
+		return 0, err
+	}
+
+	usedPasswordHash := hashPassword(password)
+	if usedPasswordHash != user.Password {
+		fmt.Println("Unsuccessful validation attempt for", user.Email)
+		return 0, errors.New("InvalidCredentials")
+	}
+	return user.ID, nil
+}
+
+func (app *App) handleLogin(w http.ResponseWriter, r *http.Request) {
+	var req LoginRequest
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		http.Error(w, "Invalid request payload", http.StatusBadRequest)
+		return
+	}
+
+	id, err := app.ValidateUser(req.Email, req.Password)
+	if err != nil {
+		http.Error(w, "Login failed", http.StatusForbidden)
+		return
+	}
+
+	token := generateToken(id)
+
+	json.NewEncoder(w).Encode(token)
+}
+
+func (app *App) handleCreateAccount(w http.ResponseWriter, r *http.Request) {
+	var user model.User
+	err := json.NewDecoder(r.Body).Decode(&user)
+
+	if err != nil {
+		http.Error(w, "Invalid request payload", http.StatusBadRequest)
+		return
+	}
+
+	// password is being converted to password hash here
+	_, err = app.CreateUser(&user)
+
+	if err != nil {
+		http.Error(w, "Failed to create user", http.StatusInternalServerError)
+		fmt.Println("Error inserting user:", err)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}

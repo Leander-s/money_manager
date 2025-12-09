@@ -1,15 +1,16 @@
 package main
 
 import (
-	"strings"
-	"strconv"
+	"context"
 	"fmt"
+	"github.com/Leander-s/money_manager/model"
 	"net/http"
 	"os"
-	"github.com/Leander-s/money_manager/model"
+	"strconv"
+	"strings"
 )
 
-type App struct{
+type App struct {
 	db model.Database
 }
 
@@ -32,11 +33,14 @@ func initServer() (app *App) {
 
 func (app *App) runServer() {
 	mux := http.NewServeMux()
+
 	mux.HandleFunc("/", app.rootHandler)
-	mux.HandleFunc("/budget", app.budgetHandler)
-	mux.HandleFunc("/balance", app.balanceHandler)
-	mux.HandleFunc("/user", app.userHandler)
-	mux.HandleFunc("/user/", app.userHandlerByID)
+	mux.Handle("/budget", app.withAuth(http.HandlerFunc(app.budgetHandler)))
+	mux.Handle("/balance", app.withAuth(http.HandlerFunc(app.balanceHandler)))
+	mux.Handle("/user", app.withAuth(http.HandlerFunc(app.userHandler)))
+	mux.Handle("/user/", app.withAuth(http.HandlerFunc(app.userHandlerByID)))
+	mux.HandleFunc("/login", app.handleLogin)
+	mux.HandleFunc("/createAccount", app.handleCreateAccount)
 
 	muxWithCORS := withCORS(mux)
 
@@ -45,6 +49,27 @@ func (app *App) runServer() {
 		fmt.Println("Error starting server:", err)
 		panic(err)
 	}
+}
+
+func (app *App) withAuth(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		auth := r.Header.Get("Authorization")
+		if !strings.HasPrefix(auth, "Bearer ") {
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
+		auth = strings.TrimPrefix(auth, "Bearer ")
+		userID, err := app.validateToken(auth)
+		if(err != nil) {
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
+
+		// If authentication succeeds, proceed to the next handler
+		ctx := context.WithValue(r.Context(), "userID", userID)
+		next.ServeHTTP(w, r.WithContext(ctx))
+		next.ServeHTTP(w, r)
+	})
 }
 
 func withCORS(next http.Handler) http.Handler {
@@ -60,7 +85,6 @@ func withCORS(next http.Handler) http.Handler {
 			return
 		}
 
-		// pass to your real handler
 		next.ServeHTTP(w, r)
 	})
 }

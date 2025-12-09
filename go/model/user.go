@@ -1,11 +1,11 @@
 package model
 
 type User struct {
-	ID        int64
-	Username  string
-	Password  string
-	Email     string
-	CreatedAt string
+	ID        int64  `json:"id"`
+	Username  string `json:"username"`
+	Password  string `json:"password"`
+	Email     string `json:"email"`
+	CreatedAt string `json:"created_at"`
 }
 
 func (db *Database) InsertUser(user *User) (int64, error) {
@@ -34,6 +34,15 @@ func (db *Database) GetAllUsers() ([]*User, error) {
 		users = append(users, user)
 	}
 	return users, rows.Err()
+}
+
+func (db *Database) GetUserByEmail(email string) (*User, error) {
+	user := &User{}
+	err := db.DB.QueryRow(
+		"SELECT id, username, password_hash, email, created_at FROM users WHERE email = $1",
+		email,
+	).Scan(&user.ID, &user.Username, &user.Password, &user.Email, &user.CreatedAt)
+	return user, err
 }
 
 func (db *Database) GetUserByID(id int64) (*User, error) {

@@ -18,12 +18,10 @@ func (app *App) handleCreateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	u.Password = hashPassword(u.Password)
-
-	id, err := app.db.InsertUser(&u)
+	id, err := app.CreateUser(&u)
 	if err != nil {
 		http.Error(w, "Failed to create user", http.StatusInternalServerError)
-		fmt.Println("Error inserting user:", err)
+		fmt.Println("Error inserting new user:", err)
 		return
 	}
 
@@ -31,6 +29,13 @@ func (app *App) handleCreateUser(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(u)
 	fmt.Println("Created user with ID:", id)
+}
+
+func (app *App) CreateUser(user *model.User) (int64, error) {
+	user.Password = hashPassword(user.Password)
+
+	id, err := app.db.InsertUser(user)
+	return id, err
 }
 
 func (app *App) handleGetUsers(w http.ResponseWriter) {
