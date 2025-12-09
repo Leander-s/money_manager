@@ -3,8 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { UserComponent, User } from './user/user';
-
-export const API = 'http://localhost:8080';
+import { environment } from '../environments/environment';
 
 @Component({
   selector: 'app-root',
@@ -43,7 +42,7 @@ export class App {
       Password: this.newPassword
     };
 
-    this.http.post<User>(API + '/user', newUser)
+    this.http.post<User>(environment.API_URL + '/user', newUser)
       .subscribe({
         next: () => {
           this.newUsername = '';
@@ -61,7 +60,7 @@ export class App {
   refresh() {
     this.loading = true;
     this.error = null;
-    this.http.get<User[]>(API + '/user')
+    this.http.get<User[]>(environment.API_URL + '/user')
       .subscribe({
         next: (users) => {
           this.users = users;
@@ -77,7 +76,7 @@ export class App {
 
   deleteUser(user: User) {
     if(!user.ID) return;
-    this.http.delete<User>(`${API}/user/${user.ID}`).subscribe({
+    this.http.delete<User>(`${environment.API_URL}/user/${user.ID}`).subscribe({
       next: () => {
         this.refresh();
         this.cdr.markForCheck();

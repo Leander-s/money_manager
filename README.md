@@ -37,8 +37,12 @@ This resets all the data saved in the background. Read will now print 0. You hav
 starting amount again to start the saving process again.
 
 ## Run server
+### Go server
+The go server is not fully operational yet. To check out the current state read more [here](./go/README.md)
+### Zig server
 > [!CAUTION]
 > This is will likely change drastically in the future
+> The zig server is currently not being developed. It is being replaced by a [go server](./go/README.md)
 
     money run
 
