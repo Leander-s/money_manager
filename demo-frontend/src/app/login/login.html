@@ -1,0 +1,16 @@
+<div>
+  <section>
+    @if(!isLoggedIn()) {
+    <div>
+      <input id="email" type="text" [(ngModel)]="email" placeholder="Email" />
+      <input id="password" type="password" [(ngModel)]="password" placeholder="Password" />
+      <button type="button" (click)="submit()">Log in</button>
+    </div>
+    } @else {
+    <div>
+      <label>Logged in</label>
+      <button type="button" (click)="logout()">Log out</button>
+    </div>
+    }
+  </section>
+</div>

@@ -1,31 +1,7 @@
-<div class="app">
-  <header class="app-header">
-    <h1>Money Manager Overview</h1>
-  </header>
+<nav>
+  <a routerLink="/dashboard">Dashboard</a>
+  <a routerLink="/">Login</a>
+  <a routerLink="/register">Register</a>
+</nav>
 
-  <main class="app-main">
-    <section class="card">
-      <h2>Users List</h2>
-      <div class="controls">
-        <button class="btn-refresh" [class.btn-loading]="loading" type="button" (click)="refresh()">
-        {{loading ? "Loading..." : "Refresh" }}
-        </button>
-        <section class="add-user-form">
-          <label>Add new user</label>
-          <div class="form-inputs">
-          <input id="newUser" type="text" [(ngModel)]="newUsername" placeholder="Username" />
-          <input id="newEmail" type="email" [(ngModel)]="newEmail" placeholder="Email" />
-          <input id="newPassword" type="password" [(ngModel)]="newPassword" placeholder="Password" />
-          <button type="button" (click)="addUser()">Add User</button>
-          </div>
-        </section>
-      </div>
-
-      <p *ngIf="error" class="error">{{ error }}</p>
-      <ul *ngIf="users && users.length" class="users-list">
-        <app-user *ngFor="let u of users" [user]="u" (onDelete)="deleteUser($event)"/>
-      </ul>
-    </section>
-  </main>
-</div>
-
+<router-outlet></router-outlet>

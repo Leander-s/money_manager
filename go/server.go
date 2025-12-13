@@ -40,7 +40,7 @@ func (app *App) runServer() {
 	mux.Handle("/user", app.withAuth(http.HandlerFunc(app.userHandler)))
 	mux.Handle("/user/", app.withAuth(http.HandlerFunc(app.userHandlerByID)))
 	mux.HandleFunc("/login", app.handleLogin)
-	mux.HandleFunc("/createAccount", app.handleCreateAccount)
+	mux.HandleFunc("/register", app.handleCreateAccount)
 
 	muxWithCORS := withCORS(mux)
 
@@ -55,12 +55,14 @@ func (app *App) withAuth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		auth := r.Header.Get("Authorization")
 		if !strings.HasPrefix(auth, "Bearer ") {
+			fmt.Println("Token did not have correct prefix")
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			return
 		}
 		auth = strings.TrimPrefix(auth, "Bearer ")
 		userID, err := app.validateToken(auth)
 		if(err != nil) {
+			fmt.Println("Could not validate token:", err.Error())
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			return
 		}
@@ -68,7 +70,6 @@ func (app *App) withAuth(next http.Handler) http.Handler {
 		// If authentication succeeds, proceed to the next handler
 		ctx := context.WithValue(r.Context(), "userID", userID)
 		next.ServeHTTP(w, r.WithContext(ctx))
-		next.ServeHTTP(w, r)
 	})
 }
 
@@ -77,7 +78,7 @@ func withCORS(next http.Handler) http.Handler {
 		// allow your Angular dev server
 		w.Header().Set("Access-Control-Allow-Origin", "http://localhost:4200")
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 
 		// handle preflight (OPTIONS) requests quickly
 		if r.Method == http.MethodOptions {
