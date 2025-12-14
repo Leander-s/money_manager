@@ -2,6 +2,46 @@ ul {
   padding-left: 0;
 }
 
+.navbar {
+  background-color: #11151c;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+  padding: 0.75rem 2rem;
+  color: #e5e7eb;
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  gap: 0.75rem;
+}
+
+.navbar a {
+  color: #f1f5f9;
+  text-decoration: none;
+  padding: 0.5rem 2rem;
+  border: none;
+  border-radius: 2px;
+  background-color: #1c2433;
+  display: flex;
+  align-items: center;
+  height: 100%;
+  transition: background-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.navbar a:hover {
+  background-color: #263349;
+  color: #ffffff;
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.28);
+}
+
+.navbar a.active {
+  background: linear-gradient(120deg, #1f599d, #225ec5);
+  color: #0d121b;
+  box-shadow: 0 6px 14px rgba(34, 94, 197, 0.35);
+}
+
+.navbar a.active:hover {
+  background: linear-gradient(120deg, #225ec5, #3499d3);
+}
+
 .app {
   min-height: 100vh;
   display: flex;
