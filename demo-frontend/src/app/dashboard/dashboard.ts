@@ -4,10 +4,11 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { UserComponent, User } from '../user/user';
 import { environment } from '../../environments/environment';
+import { EntryComponent, Entry } from '../entry/entry';
 
 @Component({
   selector: 'app-dashboard',
-  imports: [CommonModule, FormsModule, UserComponent],
+  imports: [CommonModule, FormsModule, UserComponent, EntryComponent],
   templateUrl: './dashboard.html',
   styleUrl: './dashboard.css',
 })
@@ -15,6 +16,7 @@ export class Dashboard {
   private http = inject(HttpClient)
   private cdr = inject(ChangeDetectorRef)
   users: User[] = []
+  entries: Entry[] = []
   loading = false
   error: string | null = null
 

@@ -26,6 +26,17 @@
         <app-user *ngFor="let u of users" [user]="u" (onDelete)="deleteUser($event)"/>
       </ul>
     </section>
+
+    <section class="card">
+      <h2>Money Entries</h2>
+      <div class="controls">
+      </div>
+
+      <p *ngIf="error" class="error">{{ error }}</p>
+      <ul *ngIf="entries && entries.length" class="entries-list">
+        <app-entry *ngFor="let e of entries" [entry]="e"/>
+      </ul>
+    </section>
   </main>
 </div>
 

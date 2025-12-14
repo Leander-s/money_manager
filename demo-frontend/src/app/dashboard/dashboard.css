@@ -9,9 +9,11 @@ ul {
   text-align: center;
 }
 
-.dashboard-header {
-  padding: 1rem 2rem;
-  border-bottom: 1px solid #ddd;
+.dashboard-main {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
 }
 
 .card {
