@@ -34,9 +34,10 @@ func initServer() (app *App) {
 func (app *App) runServer() {
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("/", app.rootHandler)
+	mux.Handle("/", app.withAuth(http.HandlerFunc(app.rootHandler)))
 	mux.Handle("/budget", app.withAuth(http.HandlerFunc(app.budgetHandler)))
 	mux.Handle("/balance", app.withAuth(http.HandlerFunc(app.balanceHandler)))
+	mux.Handle("/balance/", app.withAuth(http.HandlerFunc(app.balanceHandlerByCount)))
 	mux.Handle("/user", app.withAuth(http.HandlerFunc(app.userHandler)))
 	mux.Handle("/user/", app.withAuth(http.HandlerFunc(app.userHandlerByID)))
 	mux.HandleFunc("/login", app.handleLogin)
@@ -61,7 +62,7 @@ func (app *App) withAuth(next http.Handler) http.Handler {
 		}
 		auth = strings.TrimPrefix(auth, "Bearer ")
 		userID, err := app.validateToken(auth)
-		if(err != nil) {
+		if err != nil {
 			fmt.Println("Could not validate token:", err.Error())
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			return
@@ -97,11 +98,42 @@ func (app *App) deInitServer() {
 func (app *App) rootHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("Received root", r.Method, "request from:", r.RemoteAddr)
 	fmt.Fprintln(w, "Root Path Accessed with method:", r.Method)
+	w.WriteHeader(http.StatusOK)
 }
 
 func (app *App) balanceHandler(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("Received budget", r.Method, "request from:", r.RemoteAddr)
-	fmt.Fprintln(w, "Balance Path Accessed with method:", r.Method)
+	userID := r.Context().Value("userID").(int64)
+	switch r.Method {
+	case http.MethodGet:
+		app.handleGetBalance(w, userID)
+	case http.MethodPost:
+		app.handleInsertBalance(w, r, userID)
+	default:
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+	}
+}
+
+func (app *App) balanceHandlerByCount(w http.ResponseWriter, r *http.Request) {
+	userID := r.Context().Value("userID").(int64)
+	countStr := strings.TrimPrefix(r.URL.Path, "/balance/")
+	if countStr == "" {
+		http.Error(w, "Count is required", http.StatusBadRequest)
+		return
+	}
+
+	var count int64
+	count, err := strconv.ParseInt(countStr, 10, 64)
+	if err != nil {
+		http.Error(w, "Invalid count", http.StatusBadRequest)
+		return
+	}
+
+	switch r.Method {
+	case http.MethodGet:
+		app.handleGetBalanceByCount(w, userID, count)
+	default:
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+	}
 }
 
 func (app *App) budgetHandler(w http.ResponseWriter, r *http.Request) {
@@ -128,10 +160,16 @@ func (app *App) userHandlerByID(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var id int64
-	id, err := strconv.ParseInt(idStr, 10, 64)
-	if err != nil {
-		http.Error(w, "Invalid user ID", http.StatusBadRequest)
-		return
+	if idStr == "self" {
+		id = r.Context().Value("userID").(int64)
+		fmt.Println("Resolved 'self' to user ID:", id)
+	} else {
+		idParsed, err := strconv.ParseInt(idStr, 10, 64)
+		if err != nil {
+			http.Error(w, "Invalid user ID", http.StatusBadRequest)
+			return
+		}
+		id = idParsed
 	}
 
 	switch r.Method {

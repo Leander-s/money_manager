@@ -1,0 +1,41 @@
+section {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 75vh;
+  background-color: #0e141e;
+}
+
+.login-form {
+  display: flex;
+  flex-direction: column;
+  width: 340px;
+  padding: 32px;
+  border-radius: 10px;
+  background-color: #1c2433;
+  border: 1px solid #243041;
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.35);
+  gap: 12px;
+  color: #e5e7eb;
+}
+
+.logout-form {
+  display: flex;
+  flex-direction: column;
+  width: 340px;
+  padding: 32px;
+  border-radius: 10px;
+  background-color: #1c2433;
+  border: 1px solid #243041;
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.35);
+  align-items: center;
+  gap: 14px;
+  color: #e5e7eb;
+}
+
+.logout-form h1 {
+  margin: 0;
+  font-size: 1.4rem;
+  color: #22c55e;
+  text-align: center;
+}

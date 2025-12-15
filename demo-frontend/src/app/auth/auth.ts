@@ -25,7 +25,6 @@ export class Auth {
   }
 
   getToken(): AuthToken | null {
-    console.log(this.tokenSubject.value)
     if (!this.tokenSubject.value) {
       return null
     }

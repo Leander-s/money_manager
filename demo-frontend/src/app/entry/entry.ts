@@ -2,13 +2,12 @@ import { Component, Input } from '@angular/core';
 import { CommonModule } from '@angular/common';
 
 export interface Entry {
-  id: number;
+  id?: number;
   balance: number;
-  budget: number;
+  budget?: number;
   ratio: number;
-  created_at: string;
-  user_id: number;
-  user_email: string;
+  created_at?: string;
+  user_id?: number;
 }
 
 @Component({

@@ -1,0 +1,19 @@
+section {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 75vh;
+}
+
+section > div {
+  display: flex;
+  flex-direction: column;
+  width: 360px;
+  padding: 32px;
+  border-radius: 10px;
+  background-color: #1c2433;
+  border: 1px solid #243041;
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.35);
+  gap: 12px;
+  color: #e5e7eb;
+}

@@ -7,21 +7,20 @@ type MoneyEntry struct {
 	Ratio     float64 `json:"ratio"`
 	CreatedAt string `json:"created_at"`
 	UserID    int64  `json:"user_id"`
-	UserEmail string `json:"user_email"`
 }
 
 func (db *Database) InsertMoneyEntry(entry *MoneyEntry) (int64, error) {
 	var id int64
 	err := db.DB.QueryRow(
-		"INSERT INTO money (balance, budget, ratio, user_id, user_email) VALUES ($1, $2, $3, $4, $5) RETURNING id",
-		entry.Balance, entry.Budget, entry.Ratio, entry.UserID, entry.UserEmail,
+		"INSERT INTO money (balance, budget, ratio, user_id) VALUES ($1, $2, $3, $4) RETURNING id",
+		entry.Balance, entry.Budget, entry.Ratio, entry.UserID,
 	).Scan(&id)
 	entry.ID = id
 	return id, err
 }
 
 func (db *Database) GetUserMoney(userID int64) ([]*MoneyEntry, error) {
-	rows, err := db.DB.Query("SELECT id, balance, budget, ratio, created_at, user_id, user_email FROM money WHERE user_id = $1", userID)
+	rows, err := db.DB.Query("SELECT id, balance, budget, ratio, created_at, user_id FROM money WHERE user_id = $1", userID)
 	if err != nil {
 		return nil, err
 	}
@@ -30,7 +29,25 @@ func (db *Database) GetUserMoney(userID int64) ([]*MoneyEntry, error) {
 	var entries []*MoneyEntry
 	for rows.Next() {
 		entry := &MoneyEntry{}
-		if err := rows.Scan(&entry.ID, &entry.Balance, &entry.Budget, &entry.Ratio, &entry.CreatedAt, &entry.UserID, &entry.UserEmail); err != nil {
+		if err := rows.Scan(&entry.ID, &entry.Balance, &entry.Budget, &entry.Ratio, &entry.CreatedAt, &entry.UserID); err != nil {
+			return nil, err
+		}
+		entries = append(entries, entry)
+	}
+	return entries, rows.Err()
+}
+
+func (db *Database) GetUserMoneyByCount(userID int64, count int64) ([]*MoneyEntry, error) {
+	rows, err := db.DB.Query("SELECT id, balance, budget, ratio, created_at, user_id FROM money WHERE user_id = $1 ORDER BY created_at DESC LIMIT $2", userID, count)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var entries []*MoneyEntry
+	for rows.Next() {
+		entry := &MoneyEntry{}
+		if err := rows.Scan(&entry.ID, &entry.Balance, &entry.Budget, &entry.Ratio, &entry.CreatedAt, &entry.UserID); err != nil {
 			return nil, err
 		}
 		entries = append(entries, entry)

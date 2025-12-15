@@ -1,16 +1,14 @@
-<div>
-  <section>
-    @if(!isLoggedIn()) {
-    <div>
-      <input id="email" type="text" [(ngModel)]="email" placeholder="Email" />
-      <input id="password" type="password" [(ngModel)]="password" placeholder="Password" />
-      <button type="button" (click)="submit()">Log in</button>
-    </div>
-    } @else {
-    <div>
-      <label>Logged in</label>
-      <button type="button" (click)="logout()">Log out</button>
-    </div>
-    }
-  </section>
-</div>
+<section>
+  @if(!isLoggedIn()) {
+  <div class="login-form">
+    <input id="email" type="text" [(ngModel)]="email" placeholder="Email" />
+    <input id="password" type="password" [(ngModel)]="password" placeholder="Password" />
+    <button type="button" class="confirmButton" (click)="submit()">Log in</button>
+  </div>
+  } @else {
+  <div class="logout-form">
+    <h1>Logged in</h1>
+    <button type="button" class="cancelButton" (click)="logout()">Log out</button>
+  </div>
+  }
+</section>

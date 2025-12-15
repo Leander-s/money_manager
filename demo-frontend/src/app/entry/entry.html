@@ -1,7 +1,21 @@
 <div class="entry-card">
-  <div class="entry-info">
-    <strong>{{entry.id}} | {{ entry.budget }}</strong>
-    <p>{{entry.balance}}</p>
-    <small>{{entry.created_at}}</small>
+  <div class="entry-head">
+    <span class="id-pill">Entry #{{ entry.id ?? '—' }}</span>
+    <div class="meta">
+      <span class="timestamp" *ngIf="entry.created_at; else noDate">{{ entry.created_at }}</span>
+      <ng-template #noDate><span class="timestamp muted">No date</span></ng-template>
+      <span class="ratio-chip">Ratio {{ (entry.ratio * 100) | number:'1.0-0' }}%</span>
+    </div>
+  </div>
+
+  <div class="entry-grid">
+    <div class="stat">
+      <span class="label">Balance</span>
+      <strong class="value balance">{{ entry.balance | number:'1.2-2' }}</strong>
+    </div>
+    <div class="stat">
+      <span class="label">Budget</span>
+      <strong class="value">{{ entry.budget | number:'1.2-2' }}</strong>
+    </div>
   </div>
 </div>
