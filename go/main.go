@@ -1,7 +1,7 @@
 package main
 
 func main() {
-	app := initServer()
-	app.runServer()
-	app.deInitServer()
+	ctx := initContext()
+	runServer(ctx)
+	deinitContext(ctx)
 }

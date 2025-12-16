@@ -5,6 +5,7 @@ import { FormsModule } from '@angular/forms';
 import { UserComponent, User } from '../user/user';
 import { environment } from '../../environments/environment';
 import { EntryComponent, Entry } from '../entry/entry';
+import { Auth } from '../auth/auth';
 
 @Component({
   selector: 'app-dashboard',
@@ -15,6 +16,7 @@ import { EntryComponent, Entry } from '../entry/entry';
 export class Dashboard {
   private http = inject(HttpClient)
   private cdr = inject(ChangeDetectorRef)
+  private auth = inject(Auth)
   users: User[] = []
   entries: Entry[] = []
 
@@ -59,8 +61,8 @@ export class Dashboard {
           this.newEmail = ''
           this.newPassword = ''
           this.refresh()
-        }, error: () => {
-          this.error = 'Failed to add user'
+        }, error: (err) => {
+          this.error = this.handleError(err)
           this.loading = false
           this.cdr.markForCheck()
         }
@@ -82,8 +84,8 @@ export class Dashboard {
         this.refresh()
         this.cdr.markForCheck()
       },
-      error: () => {
-        this.error = 'Failed to delete user'
+      error: (err) => {
+        this.error = this.handleError(err)
         this.cdr.markForCheck()
       }
     });
@@ -99,7 +101,7 @@ export class Dashboard {
           this.cdr.markForCheck()
         }, error: (err) => {
           console.log(err)
-          this.userError = 'Failed to load users'
+          this.userError = this.handleError(err)
           this.loading = false
           this.cdr.markForCheck()
         }
@@ -116,7 +118,7 @@ export class Dashboard {
           this.cdr.markForCheck()
         }, error: (err) => {
           console.log(err)
-          this.userError = 'Failed to load current user'
+          this.userError = this.handleError(err)
           this.loading = false
           this.cdr.markForCheck()
         }
@@ -141,8 +143,8 @@ export class Dashboard {
         next: () => {
           this.balance = 0
           this.refresh()
-        }, error: () => {
-          this.entryError = 'Failed to add balance'
+        }, error: (err) => {
+          this.entryError = this.handleError(err)
           this.loading = false
           this.cdr.markForCheck()
         }
@@ -163,10 +165,32 @@ export class Dashboard {
           this.cdr.markForCheck()
         }, error: (err) => {
           console.log(err)
-          this.entryError = 'Failed to load entries'
+          this.entryError = this.handleError(err)
           this.loading = false
           this.cdr.markForCheck()
         }
       });
+  }
+
+  handleError(err: any): string {
+    switch (err.status) {
+      case 400:
+        return 'Failed to load users'
+      case 401:
+        if (this.auth.isLoggedIn()) {
+          this.auth.clearToken()
+          return 'Session expired. Please log in again.'
+        } else {
+          return 'Please log in to continue'
+        }
+      case 403:
+        return 'You are not authorized to perform this action'
+      case 404:
+        return 'Not Found'
+      case 500:
+        return 'Internal Server Error'
+      default:
+        return 'An unknown error occurred'
+    }
   }
 }
