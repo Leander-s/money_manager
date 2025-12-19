@@ -9,7 +9,7 @@ type MoneyEntry struct {
 	UserID    int64  `json:"user_id"`
 }
 
-func (db *Database) InsertMoneyEntry(entry *MoneyEntry) (int64, error) {
+func (db *Database) InsertMoneyDB(entry *MoneyEntry) (int64, error) {
 	var id int64
 	err := db.DB.QueryRow(
 		"INSERT INTO money (balance, budget, ratio, user_id) VALUES ($1, $2, $3, $4) RETURNING id",
@@ -19,7 +19,7 @@ func (db *Database) InsertMoneyEntry(entry *MoneyEntry) (int64, error) {
 	return id, err
 }
 
-func (db *Database) GetUserMoney(userID int64) ([]*MoneyEntry, error) {
+func (db *Database) SelectUserMoneyDB(userID int64) ([]*MoneyEntry, error) {
 	rows, err := db.DB.Query("SELECT id, balance, budget, ratio, created_at, user_id FROM money WHERE user_id = $1", userID)
 	if err != nil {
 		return nil, err
@@ -37,7 +37,7 @@ func (db *Database) GetUserMoney(userID int64) ([]*MoneyEntry, error) {
 	return entries, rows.Err()
 }
 
-func (db *Database) GetUserMoneyByCount(userID int64, count int64) ([]*MoneyEntry, error) {
+func (db *Database) SelectUserMoneyByCountDB(userID int64, count int64) ([]*MoneyEntry, error) {
 	rows, err := db.DB.Query("SELECT id, balance, budget, ratio, created_at, user_id FROM money WHERE user_id = $1 ORDER BY created_at DESC LIMIT $2", userID, count)
 	if err != nil {
 		return nil, err
@@ -55,7 +55,7 @@ func (db *Database) GetUserMoneyByCount(userID int64, count int64) ([]*MoneyEntr
 	return entries, rows.Err()
 }
 
-func (db *Database) UpdateMoneyEntry(entry *MoneyEntry) error {
+func (db *Database) UpdateMoneyDB(entry *MoneyEntry) error {
 	_, err := db.DB.Exec(
 		"UPDATE money SET balance = $1, budget = $2, ratio = $3 WHERE id = $4",
 		entry.Balance, entry.Budget, entry.Ratio, entry.ID,
@@ -63,7 +63,7 @@ func (db *Database) UpdateMoneyEntry(entry *MoneyEntry) error {
 	return err
 }
 
-func (db *Database) DeleteMoneyEntry(id int64) error {
+func (db *Database) DeleteMoneyDB(id int64) error {
 	_, err := db.DB.Exec(
 		"DELETE FROM money WHERE id = $1",
 		id,

@@ -1,6 +1,7 @@
 package api
 
 import (
+	"encoding/json"
 	"context"
 	"fmt"
 	"net/http"
@@ -36,7 +37,17 @@ func (ctx *Context) LoginHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	logic.HandleLogin(ctx.Db, w, r)
+	var loginReq logic.LoginRequest
+	json.NewDecoder(r.Body).Decode(&loginReq)
+
+	token, err := logic.Login(ctx.Db, &loginReq)
+	if err.Code != http.StatusOK {
+		http.Error(w, err.Message, err.Code)
+		return
+	}
+	
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(token)
 }
 
 func (ctx *Context) RegisterHandler(w http.ResponseWriter, r *http.Request) {
@@ -44,5 +55,19 @@ func (ctx *Context) RegisterHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	logic.HandleRegister(ctx.Db, w, r)
+	var userForCreate logic.UserForCreate
+	err := json.NewDecoder(r.Body).Decode(&userForCreate)
+
+	if err != nil {
+		http.Error(w, "Invalid request payload", http.StatusBadRequest)
+		return
+	}
+
+	errorResp := logic.Register(ctx.Db, &userForCreate)
+	if errorResp.Code != http.StatusOK {
+		http.Error(w, errorResp.Message, errorResp.Code)
+		return
+	}
+
+	w.WriteHeader(http.StatusCreated)
 }

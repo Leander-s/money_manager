@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"time"
 	"net/http"
-	"encoding/json"
 
 	"github.com/Leander-s/money_manager/db"
 	"github.com/google/uuid"
@@ -17,6 +16,10 @@ type LoginRequest struct {
 	Password string `json:"password"`
 }
 
+type ErrorResponse struct {
+	Message string `json:"message"`
+	Code	int    `json:"code"`
+}
 
 func GenerateToken(userID int64) database.Token {
 	expirationTime := time.Now().Add(24 * time.Hour)
@@ -37,15 +40,7 @@ func ValidateToken(db *database.Database, tokenStr string) (int64, error) {
 	if err != nil {
 		fmt.Println("Failed to get token:", tokenID.String())
 		fmt.Println("Token error:", err.Error())
-		tokens, err := db.ListTokens()
-		if err != nil {
-			fmt.Println("Cannot print available tokens:", err.Error())
-		} else {
-			fmt.Println("Tokens are:")
-			for _, t := range tokens {
-				fmt.Println(t.Token.String(), " for user ", t.UserID)
-			}
-		}
+		PrintAvailableTokens(db)
 		return 0, errors.New("InvalidToken")
 	}
 
@@ -61,8 +56,20 @@ func ValidateToken(db *database.Database, tokenStr string) (int64, error) {
 	return token.UserID, nil
 }
 
+func PrintAvailableTokens(db *database.Database) {
+	tokens, err := db.ListTokens()
+	if err != nil {
+		fmt.Println("Cannot print available tokens:", err.Error())
+	} else {
+		fmt.Println("Tokens are:")
+		for _, t := range tokens {
+			fmt.Println(t.Token.String(), " for user ", t.UserID)
+		}
+	}
+}
+
 func ValidateUser(db *database.Database, email string, password string) (int64, error) {
-	user, err := db.GetUserByEmail(email)
+	user, err := db.SelectUserByEmailDB(email)
 	if err != nil {
 		fmt.Println("Error getting user with email:", email, ",", err)
 		return 0, err
@@ -76,53 +83,61 @@ func ValidateUser(db *database.Database, email string, password string) (int64, 
 	return user.ID, nil
 }
 
-func HandleLogin(db *database.Database, w http.ResponseWriter, r *http.Request) {
-	var req LoginRequest
-	err := json.NewDecoder(r.Body).Decode(&req)
-	if err != nil {
-		http.Error(w, "Invalid request payload", http.StatusBadRequest)
-		return
+func Login(db *database.Database, loginReq *LoginRequest) (database.Token, ErrorResponse) {
+	var token database.Token
+	var errorResp ErrorResponse = ErrorResponse{
+		Message: "",
+		Code:    http.StatusOK,
 	}
 
-	id, err := ValidateUser(db, req.Email, req.Password)
+	id, err := ValidateUser(db, loginReq.Email, loginReq.Password)
 	if err != nil {
-		http.Error(w, "Login failed", http.StatusForbidden)
-		return
+		errorResp = ErrorResponse{
+			Message: "Login failed",
+			Code:    http.StatusUnauthorized,
+		}
+		return token, errorResp
 	}
 
-	token := GenerateToken(id)
+	token = GenerateToken(id)
 	err = db.DeleteTokensByUserID(id)
 	if err != nil {
 		fmt.Println("Failed to delete existing tokens for user:", err.Error())
-		http.Error(w, "Internal server error", http.StatusInternalServerError)
-		return
+		errorResp = ErrorResponse{
+			Message: "Internal server error",
+			Code:    http.StatusInternalServerError,
+		}
+		return token, errorResp
 	}
 	err = db.InsertToken(&token)
 	if err != nil {
 		fmt.Println("Failed to insert token:", err.Error())
-		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		errorResp = ErrorResponse{
+			Message: "Internal server error",
+			Code:    http.StatusInternalServerError,
+		}
+		return token, errorResp
 	}
 
-	json.NewEncoder(w).Encode(token)
+	return token, errorResp
 }
 
-func HandleRegister(db *database.Database, w http.ResponseWriter, r *http.Request) {
-	var user database.User
-	err := json.NewDecoder(r.Body).Decode(&user)
-
-	if err != nil {
-		http.Error(w, "Invalid request payload", http.StatusBadRequest)
-		return
+func Register(db *database.Database, registerReq *UserForCreate) ErrorResponse {
+	var errorResp ErrorResponse = ErrorResponse{
+		Message: "",
+		Code:    http.StatusOK,
 	}
 
-	// password is being converted to password hash here
-	_, err = CreateUser(db, &user)
+	_, err := CreateUser(db, registerReq)
 
-	if err != nil {
-		http.Error(w, "Failed to create user", http.StatusInternalServerError)
-		fmt.Println("Error inserting user:", err)
-		return
+	if err.Code != http.StatusOK {
+		errorResp = ErrorResponse{
+			Message: "Registration failed",
+			Code:    http.StatusInternalServerError,
+		}
+		fmt.Println("Error creating user:", err)
+		return errorResp
 	}
 
-	w.WriteHeader(http.StatusOK)
+	return errorResp
 }

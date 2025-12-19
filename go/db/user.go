@@ -8,17 +8,29 @@ type User struct {
 	CreatedAt string `json:"created_at"`
 }
 
-func (db *Database) InsertUser(user *User) (int64, error) {
-	var id int64
-	err := db.DB.QueryRow(
-		"INSERT INTO users (username, password_hash, email) VALUES ($1, $2, $3) RETURNING id",
-		user.Username, user.Password, user.Email,
-	).Scan(&id)
-	user.ID = id
-	return id, err
+type UserForInsert struct {
+	Username     string `json:"username"`
+	PasswordHash string `json:"password_hash"`
+	Email        string `json:"email"`
 }
 
-func (db *Database) GetAllUsers() ([]*User, error) {
+type UserForUpdate struct {
+	ID       int64  `json:"id"`
+	Username string `json:"username"`
+	Password string `json:"password"`
+	Email    string `json:"email"`
+}
+
+func (db *Database) InsertUserDB(userForInsert *UserForInsert) (User, error) {
+	var user User
+	err := db.DB.QueryRow(
+		"INSERT INTO users (username, password_hash, email) VALUES ($1, $2, $3) RETURNING id, username, password_hash, email, created_at",
+		userForInsert.Username, userForInsert.PasswordHash, userForInsert.Email,
+	).Scan(&user.ID, &user.Username, &user.Password, &user.Email, &user.CreatedAt)
+	return user, err
+}
+
+func (db *Database) SelectAllUsersDB() ([]*User, error) {
 	rows, err := db.DB.Query("SELECT id, username, password_hash, email, created_at FROM users")
 	if err != nil {
 		return nil, err
@@ -36,7 +48,7 @@ func (db *Database) GetAllUsers() ([]*User, error) {
 	return users, rows.Err()
 }
 
-func (db *Database) GetUserByEmail(email string) (*User, error) {
+func (db *Database) SelectUserByEmailDB(email string) (*User, error) {
 	user := &User{}
 	err := db.DB.QueryRow(
 		"SELECT id, username, password_hash, email, created_at FROM users WHERE email = $1",
@@ -45,7 +57,7 @@ func (db *Database) GetUserByEmail(email string) (*User, error) {
 	return user, err
 }
 
-func (db *Database) GetUserByID(id int64) (*User, error) {
+func (db *Database) SelectUserByIDDB(id int64) (*User, error) {
 	user := &User{}
 	err := db.DB.QueryRow(
 		"SELECT id, username, password_hash, email, created_at FROM users WHERE id = $1",
@@ -54,7 +66,7 @@ func (db *Database) GetUserByID(id int64) (*User, error) {
 	return user, err
 }
 
-func (db *Database) UpdateUser(user *User) error {
+func (db *Database) UpdateUserDB(user *UserForUpdate) error {
 	_, err := db.DB.Exec(
 		"UPDATE users SET username = $1, password_hash = $2, email = $3 WHERE id = $4",
 		user.Username, user.Password, user.Email, user.ID,
@@ -62,7 +74,7 @@ func (db *Database) UpdateUser(user *User) error {
 	return err
 }
 
-func (db *Database) DeleteUser(id int64) error {
+func (db *Database) DeleteUserDB(id int64) error {
 	_, err := db.DB.Exec(
 		"DELETE FROM users WHERE id = $1",
 		id,

@@ -1,7 +1,6 @@
 package logic
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/http"
 
@@ -11,87 +10,114 @@ import (
 
 const passwordHashCost = bcrypt.DefaultCost
 
-func HandleCreateUser(db *database.Database, w http.ResponseWriter, r *http.Request) {
-	var u database.User
-	if err := json.NewDecoder(r.Body).Decode(&u); err != nil {
-		http.Error(w, "Invalid request payload", http.StatusBadRequest)
-		return
-	}
-
-	id, err := CreateUser(db, &u)
-	if err != nil {
-		http.Error(w, "Failed to create user", http.StatusInternalServerError)
-		fmt.Println("Error inserting new user:", err)
-		return
-	}
-
-	u.ID = id
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(u)
-	fmt.Println("Created user with ID:", id)
+type UserForCreate struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
+	Email    string `json:"email"`
 }
 
-func CreateUser(db *database.Database, user *database.User) (int64, error) {
-	user.Password = hashPassword(user.Password)
-
-	id, err := db.InsertUser(user)
-	return id, err
+type UserForUpdate struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
+	Email    string `json:"email"`
 }
 
-func HandleGetUsers(db *database.Database, w http.ResponseWriter) {
-	users, err := db.GetAllUsers()
+func CreateUser(db *database.Database, userForCreate *UserForCreate) (database.User, ErrorResponse) {
+	errorResp := ErrorResponse{
+		Message: "",
+		Code:    http.StatusOK,
+	}
+
+	userForInsert := &database.UserForInsert{
+		Username:     userForCreate.Username,
+		PasswordHash: hashPassword(userForCreate.Password),
+		Email:        userForCreate.Email,
+	}
+
+	user, err := db.InsertUserDB(userForInsert)
 	if err != nil {
-		http.Error(w, "Failed to retrieve users", http.StatusInternalServerError)
+		fmt.Println("Error inserting user:", err)
+		return database.User{}, ErrorResponse{
+			Message: "Failed to insert user",
+			Code:    http.StatusInternalServerError,
+		}
+	}
+	return user, errorResp
+}
+
+func GetUsers(db *database.Database) ([]*database.User, ErrorResponse) {
+	errorResp := ErrorResponse{
+		Message: "",
+		Code:    http.StatusOK,
+	}
+
+	users, err := db.SelectAllUsersDB()
+	if err != nil {
 		fmt.Println("Error retrieving users:", err)
-		return
+		return nil, ErrorResponse{
+			Message: "Failed to retrieve users",
+			Code:    http.StatusInternalServerError,
+		}
 	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(users)
-	fmt.Println("Retrieved all users")
+	return users, errorResp
 }
 
-func HandleGetUserByID(db *database.Database, w http.ResponseWriter, id int64) {
-	user, err := db.GetUserByID(id)
+func GetUserByID(db *database.Database, id int64) (*database.User, ErrorResponse) {
+	errorResp := ErrorResponse{
+		Message: "",
+		Code:    http.StatusOK,
+	}
+
+	user, err := db.SelectUserByIDDB(id)
 	if err != nil {
-		http.Error(w, "User not found", http.StatusNotFound)
 		fmt.Println("Error retrieving user:", err)
-		return
+		return nil, ErrorResponse{
+			Message: "User not found",
+			Code:    http.StatusNotFound,
+		}
 	}
+	return user, errorResp
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(user)
-	fmt.Println("Retrieved user with ID:", id)
 }
 
-func HandleUpdateUser(db *database.Database, w http.ResponseWriter, r *http.Request, id int64) {
-	var u database.User
-	if err := json.NewDecoder(r.Body).Decode(&u); err != nil {
-		http.Error(w, "Invalid request payload", http.StatusBadRequest)
-		return
+func UpdateUser(db *database.Database, userForUpdate *UserForUpdate, id int64) ErrorResponse {
+	errorResp := ErrorResponse{
+		Message: "",
+		Code:    http.StatusOK,
 	}
-	u.ID = id
 
-	if err := db.UpdateUser(&u); err != nil {
-		http.Error(w, "Failed to update user", http.StatusInternalServerError)
+	userForUpdateDB := &database.UserForUpdate{
+		ID:       id,
+		Username: userForUpdate.Username,
+		Email:    userForUpdate.Email,
+		Password: userForUpdate.Password,
+	}
+
+	if err := db.UpdateUserDB(userForUpdateDB); err != nil {
 		fmt.Println("Error updating user:", err)
-		return
+		return ErrorResponse{
+			Message: "Failed to update user",
+			Code:    http.StatusInternalServerError,
+		}
 	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(u)
-	fmt.Println("Updated user with ID:", id)
+	return errorResp
 }
 
-func HandleDeleteUser(db *database.Database, w http.ResponseWriter, id int64) {
-	if err := db.DeleteUser(id); err != nil {
-		http.Error(w, "Failed to delete user", http.StatusInternalServerError)
-		fmt.Println("Error deleting user:", err)
-		return
+func DeleteUser(db *database.Database, w http.ResponseWriter, id int64) ErrorResponse {
+	errorResp := ErrorResponse{
+		Message: "",
+		Code:    http.StatusOK,
 	}
 
-	w.WriteHeader(http.StatusNoContent)
-	fmt.Println("Deleted user with ID:", id)
+	if err := db.DeleteUserDB(id); err != nil {
+		fmt.Println("Error deleting user:", err)
+		return ErrorResponse{
+			Message: "Failed to delete user",
+			Code:    http.StatusInternalServerError,
+		}
+	}
+
+	return errorResp
 }
 
 func hashPassword(password string) string {
@@ -102,3 +128,5 @@ func hashPassword(password string) string {
 	}
 	return string(hash)
 }
+
+
