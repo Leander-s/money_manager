@@ -1,34 +1,56 @@
 import { StatusBar } from 'expo-status-bar';
 import { useState } from 'react';
-import { SafeAreaView, StyleSheet } from 'react-native';
+import { StyleSheet } from 'react-native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import LoginScreen from './src/screens/LoginScreen';
 import MainScreen from './src/screens/MainScreen';
 import RegisterScreen from './src/screens/RegisterScreen';
+import { fetchCurrentUser, login, register, AuthToken, User } from './src/api';
 import { theme } from './src/theme';
 
 type Screen = 'login' | 'register' | 'main';
 
 export default function App() {
   const [screen, setScreen] = useState<Screen>('login');
-  const [displayName, setDisplayName] = useState('friend');
+  const [authToken, setAuthToken] = useState<AuthToken | null>(null);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
 
-  const handleLogin = (name: string) => {
-    setDisplayName(name);
-    setScreen('main');
+  const handleLogin = async (email: string, password: string) => {
+    try {
+      const token = await login({ email, password });
+      const user = await fetchCurrentUser(token);
+      setAuthToken(token);
+      setCurrentUser(user);
+      setScreen('main');
+      return { ok: true };
+    } catch (error) {
+      return { ok: false, error: getErrorMessage(error) };
+    }
   };
 
-  const handleRegister = (name: string) => {
-    setDisplayName(name);
-    setScreen('main');
+  const handleRegister = async (username: string, email: string, password: string) => {
+    try {
+      await register({ username: username.trim() || null, email, password });
+      const token = await login({ email, password });
+      const user = await fetchCurrentUser(token);
+      setAuthToken(token);
+      setCurrentUser(user);
+      setScreen('main');
+      return { ok: true };
+    } catch (error) {
+      return { ok: false, error: getErrorMessage(error) };
+    }
   };
 
   const handleLogout = () => {
+    setAuthToken(null);
+    setCurrentUser(null);
     setScreen('login');
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaProvider style={styles.container}>
       {screen === 'login' ? (
         <LoginScreen onLogin={handleLogin} onGoToRegister={() => setScreen('register')} />
       ) : null}
@@ -37,10 +59,19 @@ export default function App() {
         <RegisterScreen onRegister={handleRegister} onGoToLogin={() => setScreen('login')} />
       ) : null}
 
-      {screen === 'main' ? <MainScreen displayName={displayName} onLogout={handleLogout} /> : null}
+      {screen === 'main' && currentUser && authToken ? (
+        <MainScreen user={currentUser} token={authToken} onLogout={handleLogout} />
+      ) : null}
       <StatusBar style="light" />
-    </SafeAreaView>
+    </SafeAreaProvider>
   );
+}
+
+function getErrorMessage(error: unknown) {
+  if (error instanceof Error) {
+    return error.message;
+  }
+  return 'Something went wrong';
 }
 
 const styles = StyleSheet.create({

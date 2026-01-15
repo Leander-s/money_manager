@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { theme } from '../theme';
 
 type RegisterScreenProps = {
-  onRegister: (displayName: string) => void;
+  onRegister: (name: string, email: string, password: string) => Promise<{ ok: boolean; error?: string }>;
   onGoToLogin: () => void;
 };
 
@@ -12,10 +12,28 @@ export default function RegisterScreen({ onRegister, onGoToLogin }: RegisterScre
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const emailRef = useRef<TextInput>(null);
+  const passwordRef = useRef<TextInput>(null);
 
-  const handleRegister = () => {
-    const displayName = name.trim() || 'friend';
-    onRegister(displayName);
+  const handleRegister = async () => {
+    if (loading) {
+      return;
+    }
+    const trimmedEmail = email.trim();
+    if (!trimmedEmail || !password) {
+      setError('Email and password are required.');
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    const result = await onRegister(name, trimmedEmail, password);
+    if (result.ok) {
+      return;
+    }
+    setError(result.error ?? 'Registration failed.');
+    setLoading(false);
   };
 
   return (
@@ -28,9 +46,11 @@ export default function RegisterScreen({ onRegister, onGoToLogin }: RegisterScre
           <TextInput
             placeholder="Name"
             placeholderTextColor={theme.colors.textMuted}
+            returnKeyType="next"
             style={styles.input}
             value={name}
             onChangeText={setName}
+            onSubmitEditing={() => emailRef.current?.focus()}
           />
           <TextInput
             autoCapitalize="none"
@@ -38,27 +58,43 @@ export default function RegisterScreen({ onRegister, onGoToLogin }: RegisterScre
             keyboardType="email-address"
             placeholder="Email"
             placeholderTextColor={theme.colors.textMuted}
+            returnKeyType="next"
             style={styles.input}
             value={email}
             onChangeText={setEmail}
+            onSubmitEditing={() => passwordRef.current?.focus()}
+            ref={emailRef}
           />
           <TextInput
             autoComplete="password"
             placeholder="Password"
             placeholderTextColor={theme.colors.textMuted}
             secureTextEntry
+            returnKeyType="done"
             style={styles.input}
             value={password}
             onChangeText={setPassword}
+            onSubmitEditing={handleRegister}
+            enablesReturnKeyAutomatically
+            ref={passwordRef}
           />
         </View>
 
         <Pressable
-          style={({ pressed }) => [styles.primaryButton, pressed && styles.primaryButtonPressed]}
+          disabled={loading}
+          style={({ pressed }) => [
+            styles.primaryButton,
+            pressed && styles.primaryButtonPressed,
+            loading && styles.primaryButtonDisabled,
+          ]}
           onPress={handleRegister}
         >
-          <Text style={styles.primaryButtonText}>Register</Text>
+          <Text style={styles.primaryButtonText}>
+            {loading ? 'Creating account...' : 'Register'}
+          </Text>
         </Pressable>
+
+        {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
         <Pressable style={styles.linkButton} onPress={onGoToLogin}>
           <Text style={styles.linkButtonText}>Already have an account? Log in</Text>
@@ -121,10 +157,18 @@ const styles = StyleSheet.create({
   primaryButtonPressed: {
     opacity: 0.9,
   },
+  primaryButtonDisabled: {
+    opacity: 0.7,
+  },
   primaryButtonText: {
     color: theme.colors.accentText,
     fontSize: 16,
     fontWeight: '700',
+  },
+  errorText: {
+    color: theme.colors.danger,
+    marginBottom: 12,
+    textAlign: 'center',
   },
   linkButton: {
     alignItems: 'center',

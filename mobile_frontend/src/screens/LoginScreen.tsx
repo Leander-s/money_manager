@@ -1,21 +1,37 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { theme } from '../theme';
 
 type LoginScreenProps = {
-  onLogin: (displayName: string) => void;
+  onLogin: (email: string, password: string) => Promise<{ ok: boolean; error?: string }>;
   onGoToRegister: () => void;
 };
 
 export default function LoginScreen({ onLogin, onGoToRegister }: LoginScreenProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const passwordRef = useRef<TextInput>(null);
 
-  const handleLogin = () => {
+  const handleLogin = async () => {
+    if (loading) {
+      return;
+    }
     const trimmedEmail = email.trim();
-    const displayName = trimmedEmail.split('@')[0] || 'friend';
-    onLogin(displayName);
+    if (!trimmedEmail || !password) {
+      setError('Email and password are required.');
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    const result = await onLogin(trimmedEmail, password);
+    if (result.ok) {
+      return;
+    }
+    setError(result.error ?? 'Login failed.');
+    setLoading(false);
   };
 
   return (
@@ -31,27 +47,42 @@ export default function LoginScreen({ onLogin, onGoToRegister }: LoginScreenProp
             keyboardType="email-address"
             placeholder="Email"
             placeholderTextColor={theme.colors.textMuted}
+            returnKeyType="next"
             style={styles.input}
             value={email}
             onChangeText={setEmail}
+            onSubmitEditing={() => passwordRef.current?.focus()}
           />
           <TextInput
             autoComplete="password"
             placeholder="Password"
             placeholderTextColor={theme.colors.textMuted}
             secureTextEntry
+            returnKeyType="done"
             style={styles.input}
             value={password}
             onChangeText={setPassword}
+            onSubmitEditing={handleLogin}
+            enablesReturnKeyAutomatically
+            ref={passwordRef}
           />
         </View>
 
         <Pressable
-          style={({ pressed }) => [styles.primaryButton, pressed && styles.primaryButtonPressed]}
+          disabled={loading}
+          style={({ pressed }) => [
+            styles.primaryButton,
+            pressed && styles.primaryButtonPressed,
+            loading && styles.primaryButtonDisabled,
+          ]}
           onPress={handleLogin}
         >
-          <Text style={styles.primaryButtonText}>Log in</Text>
+          <Text style={styles.primaryButtonText}>
+            {loading ? 'Logging in...' : 'Log in'}
+          </Text>
         </Pressable>
+
+        {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
         <Pressable style={styles.linkButton} onPress={onGoToRegister}>
           <Text style={styles.linkButtonText}>Need an account? Register</Text>
@@ -114,10 +145,18 @@ const styles = StyleSheet.create({
   primaryButtonPressed: {
     opacity: 0.9,
   },
+  primaryButtonDisabled: {
+    opacity: 0.7,
+  },
   primaryButtonText: {
     color: theme.colors.accentText,
     fontSize: 16,
     fontWeight: '700',
+  },
+  errorText: {
+    color: theme.colors.danger,
+    marginBottom: 12,
+    textAlign: 'center',
   },
   linkButton: {
     alignItems: 'center',
