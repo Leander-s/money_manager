@@ -75,19 +75,19 @@ func (ctx *Context) HandleBalanceGetByCount(w http.ResponseWriter, userID int64,
 }
 
 func (ctx *Context) HandleBalanceInsert(w http.ResponseWriter, r *http.Request, userID int64) {
-	var entry *database.MoneyEntry
-	if err := json.NewDecoder(r.Body).Decode(entry); err != nil {
+	var entry database.MoneyEntry
+	if err := json.NewDecoder(r.Body).Decode(&entry); err != nil {
 		http.Error(w, "Invalid request payload", http.StatusBadRequest)
 		return
 	}
 	entry.UserID = userID
-	entry, errorResp := logic.InsertBalance(ctx.Db, entry, userID)
+	newEntry, errorResp := logic.InsertBalance(ctx.Db, &entry, userID)
 	if errorResp.Code != http.StatusOK {
 		http.Error(w, errorResp.Message, errorResp.Code)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(entry)
+	json.NewEncoder(w).Encode(newEntry)
 	fmt.Println("Inserted balance with ID:", entry.ID)
 }
