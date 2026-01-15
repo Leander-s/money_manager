@@ -2,13 +2,18 @@ package main
 
 import (
 	"fmt"
-	"github.com/Leander-s/money_manager/db"
-	"github.com/Leander-s/money_manager/api"
 	"net/http"
 	"os"
+	"slices"
+	"strings"
+
+	"github.com/Leander-s/money_manager/api"
+	"github.com/Leander-s/money_manager/db"
 )
 
 func initContext() (ctx *api.Context) {
+	allowedOrigins := os.Getenv("ALLOWED_ORIGINS")
+	fmt.Println("Allowed Origins:", allowedOrigins)
 
 	dsn := os.Getenv("POSTGRES_DSN")
 	fmt.Println("Connecting to database with DSN:", dsn)
@@ -19,7 +24,8 @@ func initContext() (ctx *api.Context) {
 	}
 	fmt.Println("Successfully connected to the database")
 	ctx = &api.Context{
-		Db: &db,
+		Db:             &db,
+		AllowedOrigins: allowedOrigins,
 	}
 
 	return
@@ -37,7 +43,7 @@ func runServer(ctx *api.Context) {
 	mux.HandleFunc("/login", ctx.LoginHandler)
 	mux.HandleFunc("/register", ctx.RegisterHandler)
 
-	muxWithCORS := withCORS(mux)
+	muxWithCORS := withCORS(mux, ctx.AllowedOrigins)
 
 	err := http.ListenAndServe("0.0.0.0:8080", muxWithCORS)
 	if err != nil {
@@ -46,10 +52,14 @@ func runServer(ctx *api.Context) {
 	}
 }
 
-func withCORS(next http.Handler) http.Handler {
+func withCORS(next http.Handler, allowedOrigins string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// allow your Angular dev server
-		w.Header().Set("Access-Control-Allow-Origin", "http://localhost:4200")
+		origins := strings.Split(allowedOrigins, ",")
+		origin := r.Header.Get("Origin")
+		if slices.Contains(origins, origin) {
+			w.Header().Set("Access-Control-Allow-Origin", origin)
+		}
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 
@@ -66,4 +76,3 @@ func withCORS(next http.Handler) http.Handler {
 func deinitContext(ctx *api.Context) {
 	ctx.Db.Close()
 }
-

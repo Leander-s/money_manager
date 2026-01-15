@@ -9,6 +9,7 @@ import (
 
 type Context struct {
 	Db *database.Database
+	AllowedOrigins string
 }
 
 func (ctx *Context) RootHandler(w http.ResponseWriter, r *http.Request) {

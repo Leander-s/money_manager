@@ -38,6 +38,7 @@ services:
       - db
     environment:
       POSTGRES_DSN: "${POSTGRES_DSN}"
+      ALLOWED_ORIGINS: "${ALLOWED_ORIGINS}"
     ports:
       - "8080:8080"
 
