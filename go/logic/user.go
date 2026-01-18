@@ -36,6 +36,14 @@ func CreateUser(db *database.Database, userForCreate *UserForCreate) (database.U
 
 	user, err := db.InsertUserDB(userForInsert)
 	if err != nil {
+		existingUser, err := db.SelectUserByEmailDB(userForInsert.Email)
+		if existingUser != nil && !existingUser.EmailVerified {
+			DeleteUser(db, existingUser.ID)
+			user, err = db.InsertUserDB(userForInsert)
+			if err == nil {
+				return user, errorResp
+			}
+		}
 		fmt.Println("Error inserting user:", err)
 		return database.User{}, ErrorResponse{
 			Message: "Failed to insert user",
@@ -103,7 +111,7 @@ func UpdateUser(db *database.Database, userForUpdate *UserForUpdate, id int64) E
 	return errorResp
 }
 
-func DeleteUser(db *database.Database, w http.ResponseWriter, id int64) ErrorResponse {
+func DeleteUser(db *database.Database, id int64) ErrorResponse {
 	errorResp := ErrorResponse{
 		Message: "",
 		Code:    http.StatusOK,

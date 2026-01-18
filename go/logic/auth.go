@@ -3,8 +3,8 @@ package logic
 import (
 	"errors"
 	"fmt"
-	"time"
 	"net/http"
+	"time"
 
 	"github.com/Leander-s/money_manager/db"
 	"github.com/google/uuid"
@@ -18,7 +18,7 @@ type LoginRequest struct {
 
 type ErrorResponse struct {
 	Message string `json:"message"`
-	Code	int    `json:"code"`
+	Code    int    `json:"code"`
 }
 
 func GenerateToken(userID int64) database.Token {
@@ -53,6 +53,7 @@ func ValidateToken(db *database.Database, tokenStr string) (int64, error) {
 		return 0, errors.New("TokenExpired")
 	}
 
+	db.DeleteExpiredTokens()
 	return token.UserID, nil
 }
 
@@ -75,6 +76,11 @@ func ValidateUser(db *database.Database, email string, password string) (int64, 
 		return 0, err
 	}
 
+	if user.EmailVerified == false {
+		fmt.Println("Unverified email login attempt for", email)
+		return 0, errors.New("EmailNotVerified")
+	}
+
 	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password))
 	if err != nil {
 		fmt.Println("Unsuccessful validation attempt for", user.Email)
@@ -93,7 +99,7 @@ func Login(db *database.Database, loginReq *LoginRequest) (database.Token, Error
 	id, err := ValidateUser(db, loginReq.Email, loginReq.Password)
 	if err != nil {
 		errorResp = ErrorResponse{
-			Message: "Login failed",
+			Message: "Login failed: " + err.Error(),
 			Code:    http.StatusUnauthorized,
 		}
 		return token, errorResp
@@ -122,13 +128,13 @@ func Login(db *database.Database, loginReq *LoginRequest) (database.Token, Error
 	return token, errorResp
 }
 
-func Register(db *database.Database, registerReq *UserForCreate) ErrorResponse {
+func Register(db *database.Database, mailConfig *BrevoConfig, hostAddress string, registerReq *UserForCreate) ErrorResponse {
 	var errorResp ErrorResponse = ErrorResponse{
 		Message: "",
 		Code:    http.StatusOK,
 	}
 
-	_, err := CreateUser(db, registerReq)
+	user, err := CreateUser(db, registerReq)
 
 	if err.Code != http.StatusOK {
 		errorResp = ErrorResponse{
@@ -139,5 +145,88 @@ func Register(db *database.Database, registerReq *UserForCreate) ErrorResponse {
 		return errorResp
 	}
 
+	errorResp = SendEmailVerification(db, mailConfig, hostAddress, &user)
+
 	return errorResp
+}
+
+func SendEmailVerification(db *database.Database, mailConfig *BrevoConfig, hostAddress string, user *database.User) ErrorResponse {
+	db.DeleteExpiredTokens()
+	verificationToken := GenerateToken(user.ID)
+	err := db.InsertToken(&verificationToken)
+	if err != nil {
+		fmt.Println("Failed to insert email verification token:", err.Error())
+		return ErrorResponse{
+			Message: "Internal server error",
+			Code:    http.StatusInternalServerError,
+		}
+	}
+
+	// Placeholder for email sending logic
+	err = SendEmailBrevo(mailConfig, user.Email, "Email Verification",
+		fmt.Sprintf("Please verify your email using this link: %s", hostAddress+"/verify-email/"+verificationToken.Token.String()),
+		"")
+	if err != nil {
+		fmt.Println("Failed to send verification email:", err.Error())
+		return ErrorResponse{
+			Message: "Failed to send verification email",
+			Code:    http.StatusInternalServerError,
+		}
+	}
+	return ErrorResponse{Message: "", Code: http.StatusOK}
+}
+
+func VerifyEmail(db *database.Database, tokenStr string) ErrorResponse {
+	tokenID, err := uuid.Parse(tokenStr)
+	if err != nil {
+		return ErrorResponse{
+			Message: "Invalid token format",
+			Code:    http.StatusBadRequest,
+		}
+	}
+
+	token, err := db.GetToken(tokenID)
+	if err != nil {
+		return ErrorResponse{
+			Message: "Invalid token",
+			Code:    http.StatusUnauthorized,
+		}
+	}
+
+	expirationTime := token.Expiry
+	if time.Now().After(expirationTime) {
+		db.DeleteToken(token.Token)
+		return ErrorResponse{
+			Message: "Token expired",
+			Code:    http.StatusUnauthorized,
+		}
+	}
+
+	user, err := db.SelectUserByIDDB(token.UserID)
+	if err != nil {
+		return ErrorResponse{
+			Message: "User not found",
+			Code:    http.StatusNotFound,
+		}
+	}
+
+	user.EmailVerified = true
+	userForUpdate := database.UserForUpdate{
+		ID:            user.ID,
+		Username:      user.Username,
+		Password:      user.Password,
+		Email:         user.Email,
+		EmailVerified: user.EmailVerified,
+	}
+	err = db.UpdateUserDB(&userForUpdate)
+	if err != nil {
+		fmt.Println("Failed to update user email verification status:", err.Error())
+		return ErrorResponse{
+			Message: "Failed to verify email",
+			Code:    http.StatusInternalServerError,
+		}
+	}
+
+	db.DeleteToken(token.Token)
+	return ErrorResponse{Message: "", Code: http.StatusOK}
 }

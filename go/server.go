@@ -9,6 +9,7 @@ import (
 
 	"github.com/Leander-s/money_manager/api"
 	"github.com/Leander-s/money_manager/db"
+	"github.com/Leander-s/money_manager/logic"
 )
 
 func initContext() (ctx *api.Context) {
@@ -23,9 +24,19 @@ func initContext() (ctx *api.Context) {
 		panic(err)
 	}
 	fmt.Println("Successfully connected to the database")
+
+	mailConfig, err := logic.LoadBrevoConfig()
+	if err != nil {
+		fmt.Println("Error loading Brevo config:", err)
+		panic(err)
+	}
+	fmt.Println("Successfully loaded Brevo config")
+
 	ctx = &api.Context{
 		Db:             &db,
 		AllowedOrigins: allowedOrigins,
+		MailConfig:     &mailConfig,
+		HostAddress:    os.Getenv("HOST_ADDRESS"),
 	}
 
 	return
@@ -42,6 +53,7 @@ func runServer(ctx *api.Context) {
 	mux.Handle("/user/", ctx.WithAuth(http.HandlerFunc(ctx.UserHandlerByID)))
 	mux.HandleFunc("/login", ctx.LoginHandler)
 	mux.HandleFunc("/register", ctx.RegisterHandler)
+	mux.HandleFunc("/verify-email/", ctx.VerifyEmailHandler)
 
 	muxWithCORS := withCORS(mux, ctx.AllowedOrigins)
 

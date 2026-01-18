@@ -39,6 +39,13 @@ services:
     environment:
       POSTGRES_DSN: "${POSTGRES_DSN}"
       ALLOWED_ORIGINS: "${ALLOWED_ORIGINS}"
+      BREVO_HOST: "${BREVO_HOST}"
+      BREVO_PORT: "${BREVO_PORT}"
+      BREVO_LOGIN: "${BREVO_LOGIN}"
+      BREVO_PASS: "${BREVO_PASS}"
+      BREVO_FROM: "${BREVO_FROM}"
+      BREVO_FROM_NAME: "${BREVO_FROM_NAME}"
+      HOST_ADDRESS: "${HOST_ADDRESS}"
     ports:
       - "8080:8080"
 

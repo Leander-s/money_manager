@@ -5,11 +5,14 @@ import (
 	"net/http"
 
 	"github.com/Leander-s/money_manager/db"
+	"github.com/Leander-s/money_manager/logic"
 )
 
 type Context struct {
-	Db *database.Database
+	Db             *database.Database
 	AllowedOrigins string
+	MailConfig     *logic.BrevoConfig
+	HostAddress    string
 }
 
 func (ctx *Context) RootHandler(w http.ResponseWriter, r *http.Request) {
@@ -17,4 +20,3 @@ func (ctx *Context) RootHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintln(w, "Root Path Accessed with method:", r.Method)
 	w.WriteHeader(http.StatusOK)
 }
-

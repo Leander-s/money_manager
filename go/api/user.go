@@ -112,7 +112,7 @@ func (ctx *Context) UpdateUserHandler(w http.ResponseWriter, r *http.Request, id
 }
 
 func (ctx *Context) DeleteUserHandler(w http.ResponseWriter, r *http.Request, id int64) {
-	errorResp := logic.DeleteUser(ctx.Db, w, id)
+	errorResp := logic.DeleteUser(ctx.Db, id)
 	if errorResp.Code != http.StatusOK {
 		http.Error(w, errorResp.Message, errorResp.Code)
 		return

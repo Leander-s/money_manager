@@ -1,11 +1,12 @@
 package database
 
 type User struct {
-	ID        int64  `json:"id"`
-	Username  string `json:"username"`
-	Password  string `json:"password"`
-	Email     string `json:"email"`
-	CreatedAt string `json:"created_at"`
+	ID            int64  `json:"id"`
+	Username      string `json:"username"`
+	Password      string `json:"password"`
+	Email         string `json:"email"`
+	CreatedAt     string `json:"created_at"`
+	EmailVerified bool   `json:"email_verified"`
 }
 
 type UserForInsert struct {
@@ -15,10 +16,11 @@ type UserForInsert struct {
 }
 
 type UserForUpdate struct {
-	ID       int64  `json:"id"`
-	Username string `json:"username"`
-	Password string `json:"password"`
-	Email    string `json:"email"`
+	ID            int64  `json:"id"`
+	Username      string `json:"username"`
+	Password      string `json:"password"`
+	Email         string `json:"email"`
+	EmailVerified bool   `json:"email_verified"`
 }
 
 func (db *Database) InsertUserDB(userForInsert *UserForInsert) (User, error) {
@@ -31,7 +33,7 @@ func (db *Database) InsertUserDB(userForInsert *UserForInsert) (User, error) {
 }
 
 func (db *Database) SelectAllUsersDB() ([]*User, error) {
-	rows, err := db.DB.Query("SELECT id, username, password_hash, email, created_at FROM users")
+	rows, err := db.DB.Query("SELECT id, username, password_hash, email, created_at, email_verified FROM users")
 	if err != nil {
 		return nil, err
 	}
@@ -40,7 +42,7 @@ func (db *Database) SelectAllUsersDB() ([]*User, error) {
 	var users []*User
 	for rows.Next() {
 		user := &User{}
-		if err := rows.Scan(&user.ID, &user.Username, &user.Password, &user.Email, &user.CreatedAt); err != nil {
+		if err := rows.Scan(&user.ID, &user.Username, &user.Password, &user.Email, &user.CreatedAt, &user.EmailVerified); err != nil {
 			return nil, err
 		}
 		users = append(users, user)
@@ -51,25 +53,25 @@ func (db *Database) SelectAllUsersDB() ([]*User, error) {
 func (db *Database) SelectUserByEmailDB(email string) (*User, error) {
 	user := &User{}
 	err := db.DB.QueryRow(
-		"SELECT id, username, password_hash, email, created_at FROM users WHERE email = $1",
+		"SELECT id, username, password_hash, email, created_at, email_verified FROM users WHERE email = $1",
 		email,
-	).Scan(&user.ID, &user.Username, &user.Password, &user.Email, &user.CreatedAt)
+	).Scan(&user.ID, &user.Username, &user.Password, &user.Email, &user.CreatedAt, &user.EmailVerified)
 	return user, err
 }
 
 func (db *Database) SelectUserByIDDB(id int64) (*User, error) {
 	user := &User{}
 	err := db.DB.QueryRow(
-		"SELECT id, username, password_hash, email, created_at FROM users WHERE id = $1",
+		"SELECT id, username, password_hash, email, created_at, email_verified FROM users WHERE id = $1",
 		id,
-	).Scan(&user.ID, &user.Username, &user.Password, &user.Email, &user.CreatedAt)
+	).Scan(&user.ID, &user.Username, &user.Password, &user.Email, &user.CreatedAt, &user.EmailVerified)
 	return user, err
 }
 
 func (db *Database) UpdateUserDB(user *UserForUpdate) error {
 	_, err := db.DB.Exec(
-		"UPDATE users SET username = $1, password_hash = $2, email = $3 WHERE id = $4",
-		user.Username, user.Password, user.Email, user.ID,
+		"UPDATE users SET username = $1, password_hash = $2, email = $3, email_verified = $4 WHERE id = $5",
+		user.Username, user.Password, user.Email, user.EmailVerified, user.ID,
 	)
 	return err
 }

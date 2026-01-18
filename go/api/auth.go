@@ -63,11 +63,34 @@ func (ctx *Context) RegisterHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	errorResp := logic.Register(ctx.Db, &userForCreate)
+	errorResp := logic.Register(ctx.Db, ctx.MailConfig, ctx.HostAddress, &userForCreate)
 	if errorResp.Code != http.StatusOK {
 		http.Error(w, errorResp.Message, errorResp.Code)
 		return
 	}
 
 	w.WriteHeader(http.StatusCreated)
+}
+
+func (ctx *Context) VerifyEmailHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	tokenStr := strings.TrimPrefix(r.URL.Path, "/verify-email/")
+
+	if tokenStr == "" {
+		http.Error(w, "Missing token", http.StatusBadRequest)
+		return
+	}
+
+	errorResp := logic.VerifyEmail(ctx.Db, tokenStr)
+	if errorResp.Code != http.StatusOK {
+		http.Error(w, errorResp.Message, errorResp.Code)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("Email successfully verified."))
 }

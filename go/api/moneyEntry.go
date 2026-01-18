@@ -71,7 +71,7 @@ func (ctx *Context) HandleBalanceGetByCount(w http.ResponseWriter, userID int64,
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(balances)
-	fmt.Println("Retrieved ", count, " balances for user ID:", userID)
+	fmt.Println("Retrieved", len(balances), "balances for user ID:", userID)
 }
 
 func (ctx *Context) HandleBalanceInsert(w http.ResponseWriter, r *http.Request, userID int64) {

@@ -65,3 +65,11 @@ func (db *Database) DeleteTokensByUserID(userID int64) error {
 	)
 	return err
 }
+
+func (db *Database) DeleteExpiredTokens() error {
+	_, err := db.DB.Exec(
+		"DELETE FROM tokens WHERE expires_at < $1",
+		time.Now(),
+	)
+	return err
+}
