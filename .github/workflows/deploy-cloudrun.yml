@@ -14,6 +14,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Sanity check required secrets are present
+        run: |
+          test -n "${{ secrets.WIF_PROVIDER }}" || (echo "Missing secret: WIF_PROVIDER" && exit 1)
+          test -n "${{ secrets.WIF_SERVICE_ACCOUNT }}" || (echo "Missing secret: WIF_SERVICE_ACCOUNT" && exit 1)
+
       - name: Auth to Google Cloud (WIF)
         uses: google-github-actions/auth@v2
         with:
