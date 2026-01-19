@@ -57,7 +57,8 @@ func runServer(ctx *api.Context) {
 
 	muxWithCORS := withCORS(mux, ctx.AllowedOrigins)
 
-	err := http.ListenAndServe("0.0.0.0:8080", muxWithCORS)
+	Port := os.Getenv("PORT")
+	err := http.ListenAndServe(ctx.HostAddress+":"+Port, muxWithCORS)
 	if err != nil {
 		fmt.Println("Error starting server:", err)
 		panic(err)
