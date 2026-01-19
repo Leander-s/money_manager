@@ -37,7 +37,7 @@ jobs:
           docker run --rm \
             -v "$GITHUB_WORKSPACE/migrations:/migrations" \
             migrate/migrate \
-            -path /migrations \
+            -path /go/migrations \
             -database "${{ secrets.POSTGRES_DSN_MIGRATE }}" \
             up
 
