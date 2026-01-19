@@ -35,9 +35,9 @@ jobs:
       - name: Run migrations (against Neon)
         run: |
           docker run --rm \
-            -v "$GITHUB_WORKSPACE/migrations:/migrations" \
+            -v "${{ github.workspace }}/go/migrations:/migrations" \
             migrate/migrate \
-            -path /go/migrations \
+            -path /migrations \
             -database "${{ secrets.POSTGRES_DSN_MIGRATE }}" \
             up
 
