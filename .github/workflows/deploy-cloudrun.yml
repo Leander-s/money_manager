@@ -56,6 +56,7 @@ jobs:
           image: ${{ env.IMAGE }}
           env_vars_update_strategy: merge
           env_vars: |
+            HOST_ADDRESS=${{ secrets.HOST_ADDRESS }}
             POSTGRES_DSN=${{ secrets.POSTGRES_DSN }}
             ALLOWED_ORIGINS=${{ secrets.ALLOWED_ORIGINS }}
             BREVO_HOST=${{ secrets.BREVO_HOST }}
