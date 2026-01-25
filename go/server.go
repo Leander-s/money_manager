@@ -80,6 +80,7 @@ func runServer(ctx *api.Context) {
 	mux.HandleFunc("/register", ctx.RegisterHandler)
 	mux.HandleFunc("/verify-email/", ctx.VerifyEmailHandler)
 	mux.HandleFunc("/reset-password", ctx.ResetPasswordHandler)
+	mux.HandleFunc("/request-password-reset", ctx.RequestPasswordResetHandler)
 
 	muxWithCORS := withCORS(mux, ctx.AllowedOrigins)
 
