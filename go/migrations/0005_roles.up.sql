@@ -11,6 +11,6 @@ CREATE TABLE IF NOT EXISTS user_roles (
     PRIMARY KEY (user_id, role_id)
 );
 
-CREATE INDEX user_roles_role_id_idx ON user_roles(role_id);
+CREATE INDEX IF NOT EXISTS user_roles_role_id_idx ON user_roles(role_id);
 
-INSERT INTO roles (name) VALUES ('admin'), ('user'), ('moderator');
+INSERT INTO roles (name) VALUES ('admin'), ('user'), ('moderator') ON CONFLICT (name) DO NOTHING;
