@@ -35,7 +35,7 @@ services:
     container_name: backend_service
     build: .
     depends_on:
-      - db
+      - migrate
     environment:
       POSTGRES_DSN: "${POSTGRES_DSN}"
       ALLOWED_ORIGINS: "${ALLOWED_ORIGINS}"
