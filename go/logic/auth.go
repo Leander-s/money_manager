@@ -27,7 +27,7 @@ type ResetPasswordRequest struct {
 
 type ResetPasswordExecutionRequest struct {
 	Token       uuid.UUID `json:"token"`
-	NewPassword string    `json:"new_password"`
+	NewPassword string    `json:"password"`
 }
 
 func GenerateToken(userID *uuid.UUID) database.Token {
