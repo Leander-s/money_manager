@@ -2,8 +2,10 @@ package api
 
 import (
 	"context"
+	"embed"
 	"encoding/json"
 	"fmt"
+	"html/template"
 	"net/http"
 	"strings"
 
@@ -74,29 +76,29 @@ func (ctx *Context) RegisterHandler(w http.ResponseWriter, r *http.Request) {
 
 func (ctx *Context) VerifyEmailHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		writeVerifyEmailError(w, http.StatusMethodNotAllowed, "Method not allowed.")
 		return
 	}
 
 	tokenStr := strings.TrimPrefix(r.URL.Path, "/verify-email/")
 
 	if tokenStr == "" {
-		http.Error(w, "Missing token", http.StatusBadRequest)
+		writeVerifyEmailError(w, http.StatusBadRequest, "Missing verification token.")
 		return
 	}
 
 	errorResp := logic.VerifyEmail(ctx.Db, tokenStr)
 	if errorResp.Code != http.StatusOK {
-		http.Error(w, errorResp.Message, errorResp.Code)
+		writeVerifyEmailError(w, errorResp.Code, errorResp.Message)
 		return
 	}
 
-	// TODO: check if errors are truly unreachable and remove 
+	// TODO: check if errors are truly unreachable and remove
 	if ctx.NoUsers {
 		users, errorResp := logic.GetUsers(ctx.Db, nil)
 		// There should be no way to reach this error
 		if len(users) == 0 || errorResp.Code != http.StatusOK {
-			http.Error(w, errorResp.Message, errorResp.Code)
+			writeVerifyEmailError(w, errorResp.Code, errorResp.Message)
 			return
 		}
 
@@ -104,8 +106,7 @@ func (ctx *Context) VerifyEmailHandler(w http.ResponseWriter, r *http.Request) {
 
 		// This should not be reached either
 		if len(users) > 1 {
-			w.WriteHeader(http.StatusOK)
-			w.Write([]byte("Email successfully verified."))
+			writeVerifyEmailSuccess(w)
 			return
 		}
 
@@ -113,11 +114,36 @@ func (ctx *Context) VerifyEmailHandler(w http.ResponseWriter, r *http.Request) {
 		userID := users[0].ID
 		errorResp = logic.GrantAdminRights(ctx.Db, &userID)
 		if errorResp.Code != http.StatusOK {
-			http.Error(w, errorResp.Message, errorResp.Code)
+			writeVerifyEmailError(w, errorResp.Code, errorResp.Message)
 			return
 		}
 	}
 
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("Email successfully verified."))
+	writeVerifyEmailSuccess(w)
+}
+
+//go:embed templates/verify_email_success.html templates/verify_email_error.html
+var verifyEmailTemplates embed.FS
+
+var verifyEmailTemplateSet = template.Must(template.ParseFS(verifyEmailTemplates, "templates/*.html"))
+
+func writeVerifyEmailSuccess(w http.ResponseWriter) {
+	writeVerifyEmailTemplate(w, http.StatusOK, "verify_email_success.html", nil)
+}
+
+type verifyEmailErrorData struct {
+	Message string
+}
+
+func writeVerifyEmailError(w http.ResponseWriter, status int, message string) {
+	data := verifyEmailErrorData{Message: message}
+	writeVerifyEmailTemplate(w, status, "verify_email_error.html", data)
+}
+
+func writeVerifyEmailTemplate(w http.ResponseWriter, status int, name string, data any) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.WriteHeader(status)
+	if err := verifyEmailTemplateSet.ExecuteTemplate(w, name, data); err != nil {
+		fmt.Fprint(w, "Unable to render page.")
+	}
 }

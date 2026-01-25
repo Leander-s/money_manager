@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Verification error</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #0e141e;
+        --card: #1c2433;
+        --card-border: #243041;
+        --text: #e5e7eb;
+        --muted: #9ca3af;
+        --danger: #ef4444;
+        --danger-dark: #0f121b;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font-family: "Segoe UI", Arial, sans-serif;
+        background: radial-gradient(circle at top, rgba(239, 68, 68, 0.18), transparent 55%), var(--bg);
+        color: var(--text);
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 32px;
+      }
+      .card {
+        width: min(520px, 100%);
+        background: var(--card);
+        border: 1px solid var(--card-border);
+        border-radius: 16px;
+        padding: 32px;
+        box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
+        display: flex;
+        flex-direction: column;
+        gap: 18px;
+      }
+      .badge {
+        width: 64px;
+        height: 64px;
+        border-radius: 18px;
+        background: linear-gradient(135deg, #b91c1c, #ef4444);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 10px 20px rgba(239, 68, 68, 0.3);
+      }
+      h1 {
+        margin: 0;
+        font-size: 1.8rem;
+        letter-spacing: -0.01em;
+      }
+      p {
+        margin: 0;
+        color: var(--muted);
+        line-height: 1.6;
+        font-size: 1rem;
+      }
+      .message {
+        color: var(--text);
+        font-weight: 600;
+      }
+      .button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 12px 18px;
+        border-radius: 10px;
+        font-weight: 700;
+        text-decoration: none;
+        background: linear-gradient(120deg, #b91c1c, #ef4444);
+        color: var(--danger-dark);
+        box-shadow: 0 10px 20px rgba(239, 68, 68, 0.25);
+      }
+      .note {
+        font-size: 0.92rem;
+        color: var(--muted);
+      }
+    </style>
+  </head>
+  <body>
+    <main class="card" role="status" aria-live="polite">
+      <div class="badge" aria-hidden="true">
+        <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M8 8L20 20M20 8L8 20" stroke="#0f121b" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+      </div>
+      <div>
+        <h1>Verification error</h1>
+      </div>
+      <p class="message">{{.Message}}</p>
+      <p>Check the link in your email and try again. If the link expired, request a new verification email.</p>
+      <div>
+        <span class="button">Needs attention</span>
+      </div>
+      <div class="note">You can safely close this tab.</div>
+    </main>
+  </body>
+</html>
