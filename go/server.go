@@ -46,7 +46,7 @@ func initContext() (ctx *api.Context) {
 		AllowedOrigins: allowedOrigins,
 		MailConfig:     &mailConfig,
 		HostAddress:    os.Getenv("HOST_ADDRESS"),
-		FronendAddress:  os.Getenv("FRONTEND_ADDRESS"),
+		FronendAddress: os.Getenv("FRONTEND_ADDRESS"),
 		NoUsers:        noUsers,
 	}
 
