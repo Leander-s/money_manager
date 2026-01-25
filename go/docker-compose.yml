@@ -46,6 +46,7 @@ services:
       BREVO_FROM: "${BREVO_FROM}"
       BREVO_FROM_NAME: "${BREVO_FROM_NAME}"
       HOST_ADDRESS: "${HOST_ADDRESS}"
+      PORT: "${PORT}"
     ports:
       - "8080:8080"
 

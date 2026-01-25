@@ -1,8 +1,8 @@
 package api
 
 import (
-	"encoding/json"
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
@@ -45,7 +45,7 @@ func (ctx *Context) LoginHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Message, err.Code)
 		return
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(token)
 }
@@ -89,6 +89,33 @@ func (ctx *Context) VerifyEmailHandler(w http.ResponseWriter, r *http.Request) {
 	if errorResp.Code != http.StatusOK {
 		http.Error(w, errorResp.Message, errorResp.Code)
 		return
+	}
+
+	// TODO: check if errors are truly unreachable and remove 
+	if ctx.NoUsers {
+		users, errorResp := logic.GetUsers(ctx.Db, nil)
+		// There should be no way to reach this error
+		if len(users) == 0 || errorResp.Code != http.StatusOK {
+			http.Error(w, errorResp.Message, errorResp.Code)
+			return
+		}
+
+		ctx.NoUsers = false
+
+		// This should not be reached either
+		if len(users) > 1 {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte("Email successfully verified."))
+			return
+		}
+
+		// There is exactly one user, grant admin rights
+		userID := users[0].ID
+		errorResp = logic.GrantAdminRights(ctx.Db, &userID)
+		if errorResp.Code != http.StatusOK {
+			http.Error(w, errorResp.Message, errorResp.Code)
+			return
+		}
 	}
 
 	w.WriteHeader(http.StatusOK)

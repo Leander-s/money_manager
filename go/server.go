@@ -25,6 +25,15 @@ func initContext() (ctx *api.Context) {
 	}
 	fmt.Println("Successfully connected to the database")
 
+	// Check if there are existing users in the database once on startup
+	users, err := db.SelectAllUsersDB()
+	if err != nil {
+		fmt.Println("Error checking for existing users:", err)
+		panic(err)
+	}
+
+	noUsers := len(users) == 0
+
 	mailConfig, err := logic.LoadBrevoConfig()
 	if err != nil {
 		fmt.Println("Error loading Brevo config:", err)
@@ -37,6 +46,11 @@ func initContext() (ctx *api.Context) {
 		AllowedOrigins: allowedOrigins,
 		MailConfig:     &mailConfig,
 		HostAddress:    os.Getenv("HOST_ADDRESS"),
+		NoUsers:        noUsers,
+	}
+
+	if ctx.HostAddress == "http://localhost:8080" {
+		ctx.MailConfig = &logic.MockEmailSender{}
 	}
 
 	return
@@ -45,12 +59,22 @@ func initContext() (ctx *api.Context) {
 func runServer(ctx *api.Context) {
 	mux := http.NewServeMux()
 
-	mux.Handle("/", ctx.WithAuth(http.HandlerFunc(ctx.RootHandler)))
+	mux.Handle("/", http.HandlerFunc(ctx.RootHandler))
+
+	// Budget handler is not used
+	// TODO: remove or implement
 	mux.Handle("/budget", ctx.WithAuth(http.HandlerFunc(ctx.BudgetHandler)))
+	// Balance handler to get all balances or insert a new one
 	mux.Handle("/balance", ctx.WithAuth(http.HandlerFunc(ctx.BalanceHandler)))
+	// Balance handler to get the n last balances
 	mux.Handle("/balance/", ctx.WithAuth(http.HandlerFunc(ctx.BalanceHandlerByCount)))
+
+	// User handler to create a new user or get all users
 	mux.Handle("/user", ctx.WithAuth(http.HandlerFunc(ctx.UserHandler)))
+	// User handler to get, update or delete a user by ID
 	mux.Handle("/user/", ctx.WithAuth(http.HandlerFunc(ctx.UserHandlerByID)))
+
+	// Handlers for authentication
 	mux.HandleFunc("/login", ctx.LoginHandler)
 	mux.HandleFunc("/register", ctx.RegisterHandler)
 	mux.HandleFunc("/verify-email/", ctx.VerifyEmailHandler)
@@ -71,6 +95,7 @@ func withCORS(next http.Handler, allowedOrigins string) http.Handler {
 		origins := strings.Split(allowedOrigins, ",")
 		origin := r.Header.Get("Origin")
 		if slices.Contains(origins, origin) {
+			fmt.Println("CORS allowed for origin:", origin)
 			w.Header().Set("Access-Control-Allow-Origin", origin)
 		}
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")

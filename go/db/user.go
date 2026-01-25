@@ -1,12 +1,16 @@
 package database
 
+import (
+	"github.com/google/uuid"
+)
+
 type User struct {
-	ID            int64  `json:"id"`
-	Username      string `json:"username"`
-	Password      string `json:"password"`
-	Email         string `json:"email"`
-	CreatedAt     string `json:"created_at"`
-	EmailVerified bool   `json:"email_verified"`
+	ID            uuid.UUID `json:"id"`
+	Username      string    `json:"username"`
+	Password      string    `json:"password"`
+	Email         string    `json:"email"`
+	CreatedAt     string    `json:"created_at"`
+	EmailVerified bool      `json:"email_verified"`
 }
 
 type UserForInsert struct {
@@ -16,11 +20,16 @@ type UserForInsert struct {
 }
 
 type UserForUpdate struct {
-	ID            int64  `json:"id"`
-	Username      string `json:"username"`
-	Password      string `json:"password"`
-	Email         string `json:"email"`
-	EmailVerified bool   `json:"email_verified"`
+	ID            uuid.UUID `json:"id"`
+	Username      *string    `json:"username"`
+	Password      *string    `json:"password"`
+	Email         *string    `json:"email"`
+	EmailVerified *bool      `json:"email_verified"`
+}
+
+type Role struct {
+	ID   uuid.UUID `json:"id"`
+	Name string    `json:"name"`
 }
 
 func (db *Database) InsertUserDB(userForInsert *UserForInsert) (User, error) {
@@ -59,7 +68,7 @@ func (db *Database) SelectUserByEmailDB(email string) (*User, error) {
 	return user, err
 }
 
-func (db *Database) SelectUserByIDDB(id int64) (*User, error) {
+func (db *Database) SelectUserByIDDB(id *uuid.UUID) (*User, error) {
 	user := &User{}
 	err := db.DB.QueryRow(
 		"SELECT id, username, password_hash, email, created_at, email_verified FROM users WHERE id = $1",
@@ -76,10 +85,64 @@ func (db *Database) UpdateUserDB(user *UserForUpdate) error {
 	return err
 }
 
-func (db *Database) DeleteUserDB(id int64) error {
+func (db *Database) DeleteUserDB(id *uuid.UUID) error {
 	_, err := db.DB.Exec(
 		"DELETE FROM users WHERE id = $1",
 		id,
 	)
 	return err
+}
+
+func (db *Database) GetUserRolesDB(userID *uuid.UUID) ([]Role, error) {
+	rows, err := db.DB.Query(
+		`SELECT r.id, r.name
+		 FROM roles r
+		 JOIN user_roles ur ON r.id = ur.role_id
+		 WHERE ur.user_id = $1`,
+		userID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var roles []Role
+	for rows.Next() {
+		role := Role{}
+		if err := rows.Scan(&role.ID, &role.Name); err != nil {
+			return nil, err
+		}
+		roles = append(roles, role)
+	}
+	return roles, rows.Err()
+}
+
+func (db *Database) AssignRoleToUserDB(userID *uuid.UUID, role string) error {
+	_, err := db.DB.Exec(
+		`INSERT INTO user_roles (user_id, role_id)
+		 SELECT $1, r.id FROM roles r WHERE r.name = $2`,
+		userID, role,
+	)
+	return err
+}
+
+func (db *Database) RemoveRoleFromUserDB(userID *uuid.UUID, role string) error {
+	_, err := db.DB.Exec(
+		`DELETE FROM user_roles
+		 WHERE user_id = $1 AND role_id = (SELECT id FROM roles WHERE name = $2)`,
+		userID, role,
+	)
+	return err
+}
+
+func (db *Database) CheckUserRoleDB(userID *uuid.UUID, role string) (bool, error) {
+	var count int
+	err := db.DB.QueryRow(
+		`SELECT COUNT(*)
+		 FROM user_roles ur
+		 JOIN roles r ON ur.role_id = r.id
+		 WHERE ur.user_id = $1 AND r.name = $2`,
+		userID, role,
+	).Scan(&count)
+	return count > 0, err
 }

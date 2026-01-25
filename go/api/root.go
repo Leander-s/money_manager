@@ -9,10 +9,16 @@ import (
 )
 
 type Context struct {
-	Db             *database.Database
+	// Database connection
+	Db             database.DatabaseInterface
+	// CORS allowed origins
 	AllowedOrigins string
-	MailConfig     *logic.BrevoConfig
+	// Email configuration
+	MailConfig     logic.EmailSender
+	// Host address for links
 	HostAddress    string
+	// Flag indicating if there are no users in the database
+	NoUsers        bool
 }
 
 func (ctx *Context) RootHandler(w http.ResponseWriter, r *http.Request) {

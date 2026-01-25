@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/Leander-s/money_manager/db"
+	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -17,15 +18,30 @@ type UserForCreate struct {
 }
 
 type UserForUpdate struct {
-	Username string `json:"username"`
-	Password string `json:"password"`
-	Email    string `json:"email"`
+	Username *string `json:"username"`
+	Password *string `json:"password"`
+	Email    *string `json:"email"`
 }
 
-func CreateUser(db *database.Database, userForCreate *UserForCreate) (database.User, ErrorResponse) {
+func CreateUser(store database.UserRoleStore, actorID *uuid.UUID, userForCreate *UserForCreate) (*database.User, ErrorResponse) {
 	errorResp := ErrorResponse{
 		Message: "",
 		Code:    http.StatusOK,
+	}
+
+	isModerator, err := CheckRole(store, actorID, "moderator")
+	if err != nil {
+		fmt.Println("Error checking actor role:", err)
+		return nil, ErrorResponse{
+			Message: "Failed to check actor role",
+			Code:    http.StatusInternalServerError,
+		}
+	}
+	if !isModerator && actorID != nil {
+		return nil, ErrorResponse{
+			Message: "Forbidden: insufficient permissions",
+			Code:    http.StatusForbidden,
+		}
 	}
 
 	userForInsert := &database.UserForInsert{
@@ -34,32 +50,50 @@ func CreateUser(db *database.Database, userForCreate *UserForCreate) (database.U
 		Email:        userForCreate.Email,
 	}
 
-	user, err := db.InsertUserDB(userForInsert)
+	user, err := store.InsertUserDB(userForInsert)
 	if err != nil {
-		existingUser, err := db.SelectUserByEmailDB(userForInsert.Email)
+		existingUser, err := store.SelectUserByEmailDB(userForInsert.Email)
 		if existingUser != nil && !existingUser.EmailVerified {
-			DeleteUser(db, existingUser.ID)
-			user, err = db.InsertUserDB(userForInsert)
+			DeleteUser(store, &existingUser.ID, &existingUser.ID)
+			user, err = store.InsertUserDB(userForInsert)
 			if err == nil {
-				return user, errorResp
+				return &user, errorResp
 			}
 		}
 		fmt.Println("Error inserting user:", err)
-		return database.User{}, ErrorResponse{
+		return nil, ErrorResponse{
 			Message: "Failed to insert user",
 			Code:    http.StatusInternalServerError,
 		}
 	}
-	return user, errorResp
+
+	store.AssignRoleToUserDB(&user.ID, "user")
+
+	return &user, errorResp
 }
 
-func GetUsers(db *database.Database) ([]*database.User, ErrorResponse) {
+func GetUsers(store database.UserRoleStore, actorID *uuid.UUID) ([]*database.User, ErrorResponse) {
 	errorResp := ErrorResponse{
 		Message: "",
 		Code:    http.StatusOK,
 	}
 
-	users, err := db.SelectAllUsersDB()
+	isModerator, err := CheckRole(store, actorID, "moderator")
+	if err != nil {
+		fmt.Println("Error checking actor role:", err)
+		return nil, ErrorResponse{
+			Message: "Failed to check actor role",
+			Code:    http.StatusInternalServerError,
+		}
+	}
+	if !isModerator {
+		return nil, ErrorResponse{
+			Message: "Forbidden: insufficient permissions",
+			Code:    http.StatusForbidden,
+		}
+	}
+
+	users, err := store.SelectAllUsersDB()
 	if err != nil {
 		fmt.Println("Error retrieving users:", err)
 		return nil, ErrorResponse{
@@ -70,13 +104,28 @@ func GetUsers(db *database.Database) ([]*database.User, ErrorResponse) {
 	return users, errorResp
 }
 
-func GetUserByID(db *database.Database, id int64) (*database.User, ErrorResponse) {
+func GetUserByID(store database.UserRoleStore, actorID *uuid.UUID, id *uuid.UUID) (*database.User, ErrorResponse) {
 	errorResp := ErrorResponse{
 		Message: "",
 		Code:    http.StatusOK,
 	}
 
-	user, err := db.SelectUserByIDDB(id)
+	isModerator, err := CheckRole(store, actorID, "moderator")
+	if err != nil {
+		fmt.Println("Error checking actor role:", err)
+		return nil, ErrorResponse{
+			Message: "Failed to check actor role",
+			Code:    http.StatusInternalServerError,
+		}
+	}
+	if !isModerator && *id != *actorID {
+		return nil, ErrorResponse{
+			Message: "Forbidden: insufficient permissions",
+			Code:    http.StatusForbidden,
+		}
+	}
+
+	user, err := store.SelectUserByIDDB(id)
 	if err != nil {
 		fmt.Println("Error retrieving user:", err)
 		return nil, ErrorResponse{
@@ -88,20 +137,62 @@ func GetUserByID(db *database.Database, id int64) (*database.User, ErrorResponse
 
 }
 
-func UpdateUser(db *database.Database, userForUpdate *UserForUpdate, id int64) ErrorResponse {
+func UpdateUser(store database.UserRoleStore, userForUpdate *UserForUpdate, actorID *uuid.UUID, id *uuid.UUID) ErrorResponse {
 	errorResp := ErrorResponse{
 		Message: "",
 		Code:    http.StatusOK,
 	}
 
+	if userForUpdate.Password != nil || userForUpdate.Email != nil {
+		errorResp = ErrorResponse{
+			Message: "Forbidden: cannot update password or email",
+			Code:    http.StatusForbidden,
+		}
+		return errorResp
+	}
+
+	isModerator, err := CheckRole(store, actorID, "moderator")
+	isAdmin, err := CheckRole(store, actorID, "admin")
+
+	if !isModerator && *id != *actorID {
+		return ErrorResponse{
+			Message: "Forbidden: insufficient permissions",
+			Code:    http.StatusForbidden,
+		}
+	}
+
+	userToUpdateIsMod, err := CheckRole(store, id, "moderator")
+	userToUpdateIsAdmin, err := CheckRole(store, id, "admin")
+	if err != nil {
+		fmt.Println("Error checking user:", *id, "'s role:", err)
+		return ErrorResponse{
+			Message: "Failed to check role",
+			Code:    http.StatusInternalServerError,
+		}
+	}
+
+	if userToUpdateIsMod && !isAdmin {
+		return ErrorResponse{
+			Message: "Forbidden: only admins can update moderator users",
+			Code:    http.StatusForbidden,
+		}
+	}
+
+	if userToUpdateIsAdmin && *id != *actorID {
+		return ErrorResponse{
+			Message: "Forbidden: cannot update an admin user",
+			Code:    http.StatusForbidden,
+		}
+	}
+
 	userForUpdateDB := &database.UserForUpdate{
-		ID:       id,
+		ID:       *id,
 		Username: userForUpdate.Username,
 		Email:    userForUpdate.Email,
 		Password: userForUpdate.Password,
 	}
 
-	if err := db.UpdateUserDB(userForUpdateDB); err != nil {
+	if err := store.UpdateUserDB(userForUpdateDB); err != nil {
 		fmt.Println("Error updating user:", err)
 		return ErrorResponse{
 			Message: "Failed to update user",
@@ -111,13 +202,46 @@ func UpdateUser(db *database.Database, userForUpdate *UserForUpdate, id int64) E
 	return errorResp
 }
 
-func DeleteUser(db *database.Database, id int64) ErrorResponse {
+func DeleteUser(store database.UserRoleStore, actorID *uuid.UUID, id *uuid.UUID) ErrorResponse {
 	errorResp := ErrorResponse{
 		Message: "",
 		Code:    http.StatusOK,
 	}
 
-	if err := db.DeleteUserDB(id); err != nil {
+	isModerator, err := CheckRole(store, actorID, "moderator")
+	isAdmin, err := CheckRole(store, actorID, "admin")
+
+	if !isModerator && *id != *actorID {
+		return ErrorResponse{
+			Message: "Forbidden: insufficient permissions",
+			Code:    http.StatusForbidden,
+		}
+	}
+
+	userToUpdateIsMod, err := CheckRole(store, id, "moderator")
+	userToUpdateIsAdmin, err := CheckRole(store, id, "admin")
+	if err != nil {
+		fmt.Println("Error checking user:", *id, "'s role:", err)
+		return ErrorResponse{
+			Message: "Failed to check role",
+			Code:    http.StatusInternalServerError,
+		}
+	}
+
+	if userToUpdateIsMod && !isAdmin {
+		return ErrorResponse{
+			Message: "Forbidden: only admins can delete moderator users",
+			Code:    http.StatusForbidden,
+		}
+	}
+
+	if userToUpdateIsAdmin && *id != *actorID {
+		return ErrorResponse{
+			Message: "Forbidden: cannot delete an admin user",
+			Code:    http.StatusForbidden,
+		}
+	}
+	if err := store.DeleteUserDB(id); err != nil {
 		fmt.Println("Error deleting user:", err)
 		return ErrorResponse{
 			Message: "Failed to delete user",
@@ -127,14 +251,3 @@ func DeleteUser(db *database.Database, id int64) ErrorResponse {
 
 	return errorResp
 }
-
-func hashPassword(password string) string {
-	hash, err := bcrypt.GenerateFromPassword([]byte(password), passwordHashCost)
-	if err != nil {
-		fmt.Println("Error hashing password:", err)
-		return ""
-	}
-	return string(hash)
-}
-
-

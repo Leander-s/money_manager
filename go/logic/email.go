@@ -9,6 +9,10 @@ import (
 	mail "github.com/go-mail/mail/v2"
 )
 
+type EmailSender interface {
+	SendEmail(to string, subject string, textBody string, htmlBody string) error
+}
+
 type BrevoConfig struct {
 	Host string
 	Port int
@@ -17,6 +21,8 @@ type BrevoConfig struct {
 	From string
 	FromName string
 }
+
+type MockEmailSender struct{}
 
 func LoadBrevoConfig() (BrevoConfig, error) {
 	port, err := strconv.Atoi(os.Getenv("BREVO_PORT"))
@@ -36,7 +42,7 @@ func LoadBrevoConfig() (BrevoConfig, error) {
 	return config, nil
 }
 
-func SendEmailBrevo(config *BrevoConfig, to string, subject string, textBody string, htmlBody string) error {
+func (config *BrevoConfig) SendEmail(to string, subject string, textBody string, htmlBody string) error {
 	message := mail.NewMessage()
 
 	if config.FromName != "" {
@@ -61,4 +67,9 @@ func SendEmailBrevo(config *BrevoConfig, to string, subject string, textBody str
 	dialer.Timeout = 10 * time.Second
 
 	return dialer.DialAndSend(message)
+}
+
+func (m *MockEmailSender) SendEmail(to string, subject string, textBody string, htmlBody string) error {
+	fmt.Printf("Mock send email to: %s\nSubject: %s\nText Body: %s\nHTML Body: %s\n", to, subject, textBody, htmlBody)
+	return nil
 }

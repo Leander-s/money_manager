@@ -1,13 +1,15 @@
 package database
 
 import (
-	"github.com/google/uuid"
+	"errors"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 type Token struct {
 	Token  uuid.UUID `json:"token"`
-	UserID int64     `json:"userID"`
+	UserID uuid.UUID `json:"userID"`
 	Expiry time.Time `json:"expiry"`
 }
 
@@ -22,13 +24,16 @@ func (db *Database) InsertToken(Token *Token) error {
 	return nil
 }
 
-func (db *Database) GetToken(token uuid.UUID) (*Token, error) {
+func (db *Database) GetToken(token *uuid.UUID) (*Token, error) {
+	if token == nil {
+		return nil, errors.New("token is nil")
+	}
 	Token := &Token{}
 	err := db.DB.QueryRow(
 		"SELECT user_id, expires_at FROM tokens WHERE token = $1",
 		token,
 	).Scan(&Token.UserID, &Token.Expiry)
-	Token.Token = token
+	Token.Token = *token
 	return Token, err
 }
 
@@ -50,7 +55,10 @@ func (db *Database) ListTokens() ([]*Token, error) {
 	return tokens, rows.Err()
 }
 
-func (db *Database) DeleteToken(token uuid.UUID) error {
+func (db *Database) DeleteToken(token *uuid.UUID) error {
+	if token == nil {
+		return errors.New("token is nil")
+	}
 	_, err := db.DB.Exec(
 		"DELETE FROM tokens WHERE token = $1",
 		token,
@@ -58,7 +66,10 @@ func (db *Database) DeleteToken(token uuid.UUID) error {
 	return err
 }
 
-func (db *Database) DeleteTokensByUserID(userID int64) error {
+func (db *Database) DeleteTokensByUserID(userID *uuid.UUID) error {
+	if userID == nil {
+		return errors.New("userID is nil")
+	}
 	_, err := db.DB.Exec(
 		"DELETE FROM tokens WHERE user_id = $1",
 		userID,

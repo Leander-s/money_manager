@@ -7,7 +7,63 @@ import (
 	"time"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
+	"github.com/google/uuid"
 )
+
+type UserStore interface {
+	// User-related methods
+	InsertUserDB(userForInsert *UserForInsert) (User, error)
+	SelectAllUsersDB() ([]*User, error)
+	SelectUserByEmailDB(email string) (*User, error)
+	SelectUserByIDDB(id *uuid.UUID) (*User, error)
+	UpdateUserDB(user *UserForUpdate) error
+	DeleteUserDB(id *uuid.UUID) error 
+}
+
+type RoleStore interface {
+	// Role-related methods
+	GetUserRolesDB(userID *uuid.UUID) ([]Role, error) 
+	AssignRoleToUserDB(userID *uuid.UUID, role string) error 
+	RemoveRoleFromUserDB(userID *uuid.UUID, role string) error 
+	CheckUserRoleDB(userID *uuid.UUID, role string) (bool, error) 
+}
+
+type TokenStore interface {
+	// Token-related methods
+	InsertToken(Token *Token) error 
+	GetToken(token *uuid.UUID) (*Token, error) 
+	ListTokens() ([]*Token, error) 
+	DeleteToken(token *uuid.UUID) error 
+	DeleteTokensByUserID(userID *uuid.UUID) error 
+	DeleteExpiredTokens() error 
+}
+
+type UserRoleStore interface {
+	UserStore
+	RoleStore
+}
+
+type AuthStore interface {
+	// Authentication-related methods would go here
+	TokenStore
+	UserRoleStore
+}
+
+type MoneyStore interface {
+	// Money-related methods would go here
+	InsertMoneyDB(entry *MoneyEntry) (uuid.UUID, error) 
+	SelectUserMoneyDB(userID *uuid.UUID) ([]*MoneyEntry, error) 
+	SelectUserMoneyByCountDB(userID *uuid.UUID, count int64) ([]*MoneyEntry, error) 
+	UpdateMoneyDB(entry *MoneyEntry) error 
+	DeleteMoneyDB(id *uuid.UUID) error
+}
+
+type DatabaseInterface interface {
+	AuthStore
+	MoneyStore
+
+	Close() error
+}
 
 type Database struct {
 	DB *sql.DB

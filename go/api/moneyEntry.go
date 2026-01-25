@@ -1,30 +1,31 @@
 package api
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
-	"encoding/json"
 
-	"github.com/Leander-s/money_manager/logic"
 	"github.com/Leander-s/money_manager/db"
+	"github.com/Leander-s/money_manager/logic"
+	"github.com/google/uuid"
 )
 
 func (ctx *Context) BalanceHandler(w http.ResponseWriter, r *http.Request) {
-	userID := r.Context().Value("userID").(int64)
+	userID := r.Context().Value("userID").(uuid.UUID)
 	switch r.Method {
 	case http.MethodGet:
-		ctx.HandleBalanceGet(w, userID)
+		ctx.HandleBalanceGet(w, &userID)
 	case http.MethodPost:
-		ctx.HandleBalanceInsert(w, r, userID)
+		ctx.HandleBalanceInsert(w, r, &userID)
 	default:
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 	}
 }
 
 func (ctx *Context) BalanceHandlerByCount(w http.ResponseWriter, r *http.Request) {
-	userID := r.Context().Value("userID").(int64)
+	userID := r.Context().Value("userID").(uuid.UUID)
 	countStr := strings.TrimPrefix(r.URL.Path, "/balance/")
 	if countStr == "" {
 		http.Error(w, "Count is required", http.StatusBadRequest)
@@ -40,7 +41,7 @@ func (ctx *Context) BalanceHandlerByCount(w http.ResponseWriter, r *http.Request
 
 	switch r.Method {
 	case http.MethodGet:
-		ctx.HandleBalanceGetByCount(w, userID, count)
+		ctx.HandleBalanceGetByCount(w, &userID, count)
 	default:
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 	}
@@ -51,7 +52,7 @@ func (ctx *Context) BudgetHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintln(w, "Budget Path Accessed with method:", r.Method)
 }
 
-func (ctx *Context) HandleBalanceGet(w http.ResponseWriter, id int64) { 
+func (ctx *Context) HandleBalanceGet(w http.ResponseWriter, id *uuid.UUID) { 
 	balances, errorResp := logic.GetAllBalances(ctx.Db, id)
 	if errorResp.Code != http.StatusOK {
 		http.Error(w, errorResp.Message, errorResp.Code)
@@ -62,7 +63,7 @@ func (ctx *Context) HandleBalanceGet(w http.ResponseWriter, id int64) {
 	fmt.Println("Retrieved balance for user ID:", id)
 }
 
-func (ctx *Context) HandleBalanceGetByCount(w http.ResponseWriter, userID int64, count int64) {
+func (ctx *Context) HandleBalanceGetByCount(w http.ResponseWriter, userID *uuid.UUID, count int64) {
 	balances, errorResp := logic.GetBalanceByCount(ctx.Db, userID, count)
 	if errorResp.Code != http.StatusOK {
 		http.Error(w, errorResp.Message, errorResp.Code)
@@ -74,13 +75,13 @@ func (ctx *Context) HandleBalanceGetByCount(w http.ResponseWriter, userID int64,
 	fmt.Println("Retrieved", len(balances), "balances for user ID:", userID)
 }
 
-func (ctx *Context) HandleBalanceInsert(w http.ResponseWriter, r *http.Request, userID int64) {
+func (ctx *Context) HandleBalanceInsert(w http.ResponseWriter, r *http.Request, userID *uuid.UUID) {
 	var entry database.MoneyEntry
 	if err := json.NewDecoder(r.Body).Decode(&entry); err != nil {
 		http.Error(w, "Invalid request payload", http.StatusBadRequest)
 		return
 	}
-	entry.UserID = userID
+	entry.UserID = *userID
 	newEntry, errorResp := logic.InsertBalance(ctx.Db, &entry, userID)
 	if errorResp.Code != http.StatusOK {
 		http.Error(w, errorResp.Message, errorResp.Code)

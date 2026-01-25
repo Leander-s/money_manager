@@ -5,14 +5,15 @@ import (
 	"net/http"
 
 	"github.com/Leander-s/money_manager/db"
+	"github.com/google/uuid"
 )
 
-func InsertBalance(db *database.Database, entry *database.MoneyEntry, userID int64) (*database.MoneyEntry, ErrorResponse) {
-	lastEntry, _ := GetLastBalance(db, userID)
+func InsertBalance(store database.MoneyStore, entry *database.MoneyEntry, userID *uuid.UUID) (*database.MoneyEntry, ErrorResponse) {
+	lastEntry, _ := GetLastBalance(store, userID)
 
 	entry.Budget = calculateBudget(entry, lastEntry)
 
-	id, err := db.InsertMoneyDB(entry)
+	id, err := store.InsertMoneyDB(entry)
 	if err != nil {
 		fmt.Println("Error inserting balance:", err)
 		return nil, ErrorResponse{
@@ -48,8 +49,8 @@ func calculateBudget(currentBalance *database.MoneyEntry, lastBalance *database.
 	return lastBalance.Budget + diff*currentBalance.Ratio
 }
 
-func GetLastBalance(db *database.Database, userID int64) (*database.MoneyEntry, ErrorResponse) {
-	balances, err := db.SelectUserMoneyByCountDB(userID, 1)
+func GetLastBalance(store database.MoneyStore, userID *uuid.UUID) (*database.MoneyEntry, ErrorResponse) {
+	balances, err := store.SelectUserMoneyByCountDB(userID, 1)
 	if err != nil {
 		fmt.Println("Error retrieving balance:", err)
 		return nil, ErrorResponse{
@@ -71,8 +72,8 @@ func GetLastBalance(db *database.Database, userID int64) (*database.MoneyEntry, 
 	}
 }
 
-func GetBalanceByCount(db *database.Database, userID int64, count int64) ([]*database.MoneyEntry, ErrorResponse) {
-	balances, err := db.SelectUserMoneyByCountDB(userID, count)
+func GetBalanceByCount(store database.MoneyStore, userID *uuid.UUID, count int64) ([]*database.MoneyEntry, ErrorResponse) {
+	balances, err := store.SelectUserMoneyByCountDB(userID, count)
 	if err != nil {
 		fmt.Println("Error retrieving balances:", err)
 		return nil, ErrorResponse{
@@ -87,8 +88,8 @@ func GetBalanceByCount(db *database.Database, userID int64, count int64) ([]*dat
 	}
 }
 
-func GetAllBalances(db *database.Database, userID int64) ([]*database.MoneyEntry, ErrorResponse) {
-	balances, err := db.SelectUserMoneyDB(userID)
+func GetAllBalances(store database.MoneyStore, userID *uuid.UUID) ([]*database.MoneyEntry, ErrorResponse) {
+	balances, err := store.SelectUserMoneyDB(userID)
 	if err != nil {
 		fmt.Println("Error retrieving balance:", err)
 		return nil, ErrorResponse{
