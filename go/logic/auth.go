@@ -230,9 +230,22 @@ func ResetPassword(store database.AuthStore, token *uuid.UUID, newPassword strin
 			Code:    http.StatusUnauthorized,
 		}
 	}
+
+	user, err := store.SelectUserByIDDB(&userID)
+	if err != nil && user.EmailVerified == false {
+		fmt.Println("Password reset attempt for unverified email:", user.Email)
+		return ErrorResponse{
+			Message: "Email not verified",
+			Code:    http.StatusUnauthorized,
+		}
+	}
+
 	userForUpdate := database.UserForUpdate{
 		ID:       userID,
+		Username: &user.Username,
 		Password: &hashedPassword,
+		Email:    &user.Email,
+		EmailVerified: &user.EmailVerified,
 	}
 	errUpdate := store.UpdateUserDB(&userForUpdate)
 	if errUpdate != nil {
