@@ -39,6 +39,15 @@ export type RegisterRequest = {
     password: string;
 };
 
+export type ResetPasswordRequest = {
+    email: string;
+};
+
+export type ResetPasswordWithTokenRequest = {
+    token: string;
+    password: string;
+};
+
 async function requestJson<T>(path: string, options: RequestInit): Promise<T> {
     const response = await fetch(`${API_URL}${path}`, options);
     if (!response.ok) {
@@ -67,6 +76,24 @@ export async function login(request: LoginRequest): Promise<AuthToken> {
 
 export async function register(request: RegisterRequest): Promise<void> {
     return requestNoContent('/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(request),
+    });
+}
+
+export async function resetPassword(request: ResetPasswordRequest): Promise<void> {
+    return requestNoContent('/request-password-reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(request),
+    });
+}
+
+export async function resetPasswordWithToken(
+    request: ResetPasswordWithTokenRequest
+): Promise<void> {
+    return requestNoContent('/reset-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(request),

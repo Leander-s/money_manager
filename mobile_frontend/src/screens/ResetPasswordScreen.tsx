@@ -3,98 +3,118 @@ import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { theme } from '../theme';
 
-type LoginScreenProps = {
-  onLogin: (email: string, password: string) => Promise<{ ok: boolean; error?: string }>;
-  onGoToRegister: () => void;
-  onGoToForgotPassword: () => void;
+type ResetPasswordScreenProps = {
+  token: string | null;
+  onResetPassword: (token: string, password: string) => Promise<{ ok: boolean; error?: string }>;
+  onGoToLogin: () => void;
 };
 
-export default function LoginScreen({
-  onLogin,
-  onGoToRegister,
-  onGoToForgotPassword,
-}: LoginScreenProps) {
-  const [email, setEmail] = useState('');
+export default function ResetPasswordScreen({
+  token,
+  onResetPassword,
+  onGoToLogin,
+}: ResetPasswordScreenProps) {
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const passwordRef = useRef<TextInput>(null);
+  const [success, setSuccess] = useState(false);
+  const confirmRef = useRef<TextInput>(null);
 
-  const handleLogin = async () => {
-    if (loading) {
+  const handleReset = async () => {
+    if (loading || success) {
       return;
     }
-    const trimmedEmail = email.trim();
-    if (!trimmedEmail || !password) {
-      setError('Email and password are required.');
+    if (!token) {
+      setError('Reset link is invalid or has expired.');
       return;
     }
+    if (!password || !confirmPassword) {
+      setError('Please enter and confirm your new password.');
+      return;
+    }
+    if (password !== confirmPassword) {
+      setError('Passwords do not match.');
+      return;
+    }
+
     setLoading(true);
     setError(null);
-    const result = await onLogin(trimmedEmail, password);
+    const result = await onResetPassword(token, password);
     if (result.ok) {
+      setSuccess(true);
+      setLoading(false);
       return;
     }
-    setError(result.error ?? 'Login failed.');
+    setError(result.error ?? 'Unable to reset password.');
     setLoading(false);
   };
 
   return (
     <View style={styles.container}>
       <View style={styles.card}>
-        <Text style={styles.title}>Welcome back</Text>
-        <Text style={styles.subtitle}>Sign in with your email to continue.</Text>
+        <Text style={styles.title}>Reset your password</Text>
+        <Text style={styles.subtitle}>Choose a new password for your account.</Text>
 
         <View style={styles.form}>
           <TextInput
-            autoCapitalize="none"
-            autoComplete="email"
-            keyboardType="email-address"
-            placeholder="Email"
+            autoComplete="password"
+            placeholder="New password"
             placeholderTextColor={theme.colors.textMuted}
+            secureTextEntry
             returnKeyType="next"
             style={styles.input}
-            value={email}
-            onChangeText={setEmail}
-            onSubmitEditing={() => passwordRef.current?.focus()}
+            value={password}
+            onChangeText={(value) => {
+              setPassword(value);
+              if (success) {
+                setSuccess(false);
+              }
+            }}
+            onSubmitEditing={() => confirmRef.current?.focus()}
+            enablesReturnKeyAutomatically
           />
           <TextInput
             autoComplete="password"
-            placeholder="Password"
+            placeholder="Confirm new password"
             placeholderTextColor={theme.colors.textMuted}
             secureTextEntry
             returnKeyType="done"
             style={styles.input}
-            value={password}
-            onChangeText={setPassword}
-            onSubmitEditing={handleLogin}
+            value={confirmPassword}
+            onChangeText={(value) => {
+              setConfirmPassword(value);
+              if (success) {
+                setSuccess(false);
+              }
+            }}
+            onSubmitEditing={handleReset}
             enablesReturnKeyAutomatically
-            ref={passwordRef}
+            ref={confirmRef}
           />
         </View>
 
         <Pressable
-          disabled={loading}
+          disabled={loading || success}
           style={({ pressed }) => [
             styles.primaryButton,
             pressed && styles.primaryButtonPressed,
-            loading && styles.primaryButtonDisabled,
+            (loading || success) && styles.primaryButtonDisabled,
           ]}
-          onPress={handleLogin}
+          onPress={handleReset}
         >
           <Text style={styles.primaryButtonText}>
-            {loading ? 'Logging in...' : 'Log in'}
+            {loading ? 'Resetting...' : 'Reset password'}
           </Text>
         </Pressable>
 
         {error ? <Text style={styles.errorText}>{error}</Text> : null}
+        {success ? (
+          <Text style={styles.successText}>Password reset successful. You can log in now.</Text>
+        ) : null}
 
-        <Pressable style={styles.linkButton} onPress={onGoToForgotPassword}>
-          <Text style={styles.linkButtonText}>Forgot password?</Text>
-        </Pressable>
-
-        <Pressable style={styles.linkButton} onPress={onGoToRegister}>
-          <Text style={styles.linkButtonText}>Need an account? Register</Text>
+        <Pressable style={styles.linkButton} onPress={onGoToLogin}>
+          <Text style={styles.linkButtonText}>Back to login</Text>
         </Pressable>
       </View>
     </View>
@@ -164,6 +184,11 @@ const styles = StyleSheet.create({
   },
   errorText: {
     color: theme.colors.danger,
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  successText: {
+    color: theme.colors.accent,
     marginBottom: 12,
     textAlign: 'center',
   },

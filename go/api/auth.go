@@ -74,6 +74,51 @@ func (ctx *Context) RegisterHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 }
 
+func (ctx *Context) RequestPasswordResetHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	var resetPasswordReq logic.ResetPasswordRequest
+	err := json.NewDecoder(r.Body).Decode(&resetPasswordReq)
+
+	if err != nil {
+		http.Error(w, "Invalid request payload", http.StatusBadRequest)
+		return
+	}
+
+	errorResp := logic.SendPasswordResetEmail(ctx.Db, ctx.MailConfig, ctx.FronendAddress, &resetPasswordReq)
+	if errorResp.Code != http.StatusOK {
+		http.Error(w, errorResp.Message, errorResp.Code)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
+func (ctx *Context) ResetPasswordHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var request logic.ResetPasswordExecutionRequest
+	err := json.NewDecoder(r.Body).Decode(&request)
+
+	if err != nil {
+		http.Error(w, "Invalid request payload", http.StatusBadRequest)
+		return
+	}
+
+	errorResp := logic.ResetPassword(ctx.Db, &request.Token, request.NewPassword)
+	if errorResp.Code != http.StatusOK {
+		http.Error(w, errorResp.Message, errorResp.Code)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
 func (ctx *Context) VerifyEmailHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		writeVerifyEmailError(w, http.StatusMethodNotAllowed, "Method not allowed.")

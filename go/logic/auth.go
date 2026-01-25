@@ -21,6 +21,15 @@ type ErrorResponse struct {
 	Code    int    `json:"code"`
 }
 
+type ResetPasswordRequest struct {
+	Email string `json:"email"`
+}
+
+type ResetPasswordExecutionRequest struct {
+	Token       uuid.UUID `json:"token"`
+	NewPassword string    `json:"new_password"`
+}
+
 func GenerateToken(userID *uuid.UUID) database.Token {
 	if userID == nil {
 		return database.Token{}
@@ -175,6 +184,69 @@ func Register(store database.AuthStore, mailConfig EmailSender, hostAddress stri
 	errorResp = SendEmailVerification(store, mailConfig, hostAddress, user)
 
 	return errorResp
+}
+
+func SendPasswordResetEmail(store database.AuthStore, mailConfig EmailSender, frontendAddress string, request *ResetPasswordRequest) ErrorResponse {
+	store.DeleteExpiredTokens()
+	user, err := store.SelectUserByEmailDB(request.Email)
+	if err != nil {
+		fmt.Println("Failed to find user for password reset:", err.Error())
+		return ErrorResponse{
+			Message: "If the email is registered, a password reset link has been sent.",
+			Code:    http.StatusOK,
+		}
+	}
+
+	resetToken := GenerateToken(&user.ID)
+	err = store.InsertToken(&resetToken)
+	if err != nil {
+		fmt.Println("Failed to insert password reset token:", err.Error())
+		return ErrorResponse{
+			Message: "Internal server error",
+			Code:    http.StatusInternalServerError,
+		}
+	}
+
+	err = mailConfig.SendEmail(user.Email, "Password Reset",
+		fmt.Sprintf("Please reset your password using this link: %s", frontendAddress+"/reset-password/"+resetToken.Token.String()),
+		"")
+	if err != nil {
+		fmt.Println("Failed to send password reset email:", err.Error())
+		return ErrorResponse{
+			Message: "Failed to send password reset email",
+			Code:    http.StatusInternalServerError,
+		}
+	}
+	return ErrorResponse{Message: "If the email is registered, a password reset link has been sent.", Code: http.StatusOK}
+}
+
+func ResetPassword(store database.AuthStore, token *uuid.UUID, newPassword string) ErrorResponse {
+	hashedPassword := hashPassword(newPassword)
+	userID, err := ValidateToken(store, token.String())
+	if err != nil {
+		fmt.Println("Password reset token validation failed:", err.Error())
+		return ErrorResponse{
+			Message: "Invalid or expired token",
+			Code:    http.StatusUnauthorized,
+		}
+	}
+	userForUpdate := database.UserForUpdate{
+		ID:       userID,
+		Password: &hashedPassword,
+	}
+	errUpdate := store.UpdateUserDB(&userForUpdate)
+	if errUpdate != nil {
+		fmt.Println("Failed to update user password:", errUpdate.Error())
+		return ErrorResponse{
+			Message: "Failed to reset password",
+			Code:    http.StatusInternalServerError,
+		}
+	}
+	err = store.DeleteToken(token)
+	if err != nil {
+		fmt.Println("Failed to delete used password reset token:", err.Error())
+	}
+	return ErrorResponse{Message: "", Code: http.StatusOK}
 }
 
 func SendEmailVerification(store database.TokenStore, mailConfig EmailSender, hostAddress string, user *database.User) ErrorResponse {

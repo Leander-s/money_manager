@@ -17,6 +17,8 @@ type Context struct {
 	MailConfig     logic.EmailSender
 	// Host address for links
 	HostAddress    string
+	// Frontend address for links
+	FronendAddress string
 	// Flag indicating if there are no users in the database
 	NoUsers        bool
 }

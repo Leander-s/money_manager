@@ -46,6 +46,7 @@ func initContext() (ctx *api.Context) {
 		AllowedOrigins: allowedOrigins,
 		MailConfig:     &mailConfig,
 		HostAddress:    os.Getenv("HOST_ADDRESS"),
+		FronendAddress:  os.Getenv("FRONTEND_ADDRESS"),
 		NoUsers:        noUsers,
 	}
 
@@ -78,6 +79,7 @@ func runServer(ctx *api.Context) {
 	mux.HandleFunc("/login", ctx.LoginHandler)
 	mux.HandleFunc("/register", ctx.RegisterHandler)
 	mux.HandleFunc("/verify-email/", ctx.VerifyEmailHandler)
+	mux.HandleFunc("/reset-password", ctx.ResetPasswordHandler)
 
 	muxWithCORS := withCORS(mux, ctx.AllowedOrigins)
 

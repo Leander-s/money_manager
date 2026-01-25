@@ -3,47 +3,44 @@ import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { theme } from '../theme';
 
-type LoginScreenProps = {
-  onLogin: (email: string, password: string) => Promise<{ ok: boolean; error?: string }>;
-  onGoToRegister: () => void;
-  onGoToForgotPassword: () => void;
+type ForgotPasswordScreenProps = {
+  onRequestReset: (email: string) => Promise<{ ok: boolean; error?: string }>;
+  onGoToLogin: () => void;
 };
 
-export default function LoginScreen({
-  onLogin,
-  onGoToRegister,
-  onGoToForgotPassword,
-}: LoginScreenProps) {
+export default function ForgotPasswordScreen({
+  onRequestReset,
+  onGoToLogin,
+}: ForgotPasswordScreenProps) {
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const passwordRef = useRef<TextInput>(null);
+  const emailRef = useRef<TextInput>(null);
 
-  const handleLogin = async () => {
+  const handleReset = async () => {
     if (loading) {
       return;
     }
     const trimmedEmail = email.trim();
-    if (!trimmedEmail || !password) {
-      setError('Email and password are required.');
+    if (!trimmedEmail) {
+      setError('Email is required.');
       return;
     }
     setLoading(true);
     setError(null);
-    const result = await onLogin(trimmedEmail, password);
+    const result = await onRequestReset(trimmedEmail);
     if (result.ok) {
       return;
     }
-    setError(result.error ?? 'Login failed.');
+    setError(result.error ?? 'Unable to send reset email.');
     setLoading(false);
   };
 
   return (
     <View style={styles.container}>
       <View style={styles.card}>
-        <Text style={styles.title}>Welcome back</Text>
-        <Text style={styles.subtitle}>Sign in with your email to continue.</Text>
+        <Text style={styles.title}>Forgot your password?</Text>
+        <Text style={styles.subtitle}>Enter your email and we will send a reset link.</Text>
 
         <View style={styles.form}>
           <TextInput
@@ -52,24 +49,13 @@ export default function LoginScreen({
             keyboardType="email-address"
             placeholder="Email"
             placeholderTextColor={theme.colors.textMuted}
-            returnKeyType="next"
+            returnKeyType="done"
             style={styles.input}
             value={email}
             onChangeText={setEmail}
-            onSubmitEditing={() => passwordRef.current?.focus()}
-          />
-          <TextInput
-            autoComplete="password"
-            placeholder="Password"
-            placeholderTextColor={theme.colors.textMuted}
-            secureTextEntry
-            returnKeyType="done"
-            style={styles.input}
-            value={password}
-            onChangeText={setPassword}
-            onSubmitEditing={handleLogin}
+            onSubmitEditing={handleReset}
             enablesReturnKeyAutomatically
-            ref={passwordRef}
+            ref={emailRef}
           />
         </View>
 
@@ -80,21 +66,17 @@ export default function LoginScreen({
             pressed && styles.primaryButtonPressed,
             loading && styles.primaryButtonDisabled,
           ]}
-          onPress={handleLogin}
+          onPress={handleReset}
         >
           <Text style={styles.primaryButtonText}>
-            {loading ? 'Logging in...' : 'Log in'}
+            {loading ? 'Sending...' : 'Send reset email'}
           </Text>
         </Pressable>
 
         {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
-        <Pressable style={styles.linkButton} onPress={onGoToForgotPassword}>
-          <Text style={styles.linkButtonText}>Forgot password?</Text>
-        </Pressable>
-
-        <Pressable style={styles.linkButton} onPress={onGoToRegister}>
-          <Text style={styles.linkButtonText}>Need an account? Register</Text>
+        <Pressable style={styles.linkButton} onPress={onGoToLogin}>
+          <Text style={styles.linkButtonText}>Back to login</Text>
         </Pressable>
       </View>
     </View>
