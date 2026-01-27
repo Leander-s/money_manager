@@ -30,8 +30,8 @@ func InsertBalance(store database.MoneyStore, entry *database.MoneyEntry, userID
 }
 
 func calculateBudget(currentBalance *database.MoneyEntry, lastBalance *database.MoneyEntry) float64 {
-	// If this is the first balance entry, set budget based on ratio
-	var budget = currentBalance.Balance * currentBalance.Ratio
+	// If no last balance, start from 0
+	var budget float64 = 0
 	if (lastBalance == nil) {
 		return budget
 	}
