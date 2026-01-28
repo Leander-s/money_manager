@@ -118,6 +118,13 @@ export async function fetchLatestMoneyEntry(token: AuthToken): Promise<MoneyEntr
     return entries[0];
 }
 
+export async function fetchMoneyEntries(token: AuthToken): Promise<MoneyEntry[]> {
+    return requestJson<MoneyEntry[]>('/balance', {
+        method: 'GET',
+        headers: { Authorization: `Bearer ${token.token}` },
+    });
+}
+
 export async function createMoneyEntry(
     token: AuthToken,
     request: MoneyEntryRequest

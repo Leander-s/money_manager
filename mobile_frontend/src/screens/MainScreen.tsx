@@ -1,7 +1,7 @@
 import React from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
-import { AuthToken, createMoneyEntry, fetchLatestMoneyEntry, MoneyEntry, User } from '../api';
+import { AuthToken, createMoneyEntry, fetchMoneyEntries, MoneyEntry, User } from '../api';
 import { theme } from '../theme';
 
 type MainScreenProps = {
@@ -15,6 +15,8 @@ export default function MainScreen({ user, token, onLogout }: MainScreenProps) {
     const [ratio, setRatio] = React.useState('');
     const [currentBudget, setCurrentBudget] = React.useState<number | null>(null);
     const [lastBalance, setLastBalance] = React.useState<number | null>(null);
+    const [historyEntries, setHistoryEntries] = React.useState<MoneyEntry[]>([]);
+    const [sidebarOpen, setSidebarOpen] = React.useState(false);
     const [loading, setLoading] = React.useState(false);
     const [submitting, setSubmitting] = React.useState(false);
     const [error, setError] = React.useState<string | null>(null);
@@ -46,6 +48,34 @@ export default function MainScreen({ user, token, onLogout }: MainScreenProps) {
         },
         [formatRatioPercent]
     );
+
+    const sortEntries = React.useCallback((entries: MoneyEntry[]) => {
+        return [...entries].sort((a, b) => {
+            const timeA = Date.parse(a.created_at);
+            const timeB = Date.parse(b.created_at);
+            if (Number.isNaN(timeA) && Number.isNaN(timeB)) {
+                return b.id - a.id;
+            }
+            if (Number.isNaN(timeA)) {
+                return 1;
+            }
+            if (Number.isNaN(timeB)) {
+                return -1;
+            }
+            if (timeA === timeB) {
+                return b.id - a.id;
+            }
+            return timeB - timeA;
+        });
+    }, []);
+
+    const formatEntryDate = React.useCallback((value: string) => {
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) {
+            return value;
+        }
+        return date.toLocaleString();
+    }, []);
 
     const handleBalanceChange = (value: string) => {
         if (decimalRegex.test(value)) {
@@ -90,6 +120,10 @@ export default function MainScreen({ user, token, onLogout }: MainScreenProps) {
             });
             setBalance('');
             applyLatestEntry(entry);
+            setHistoryEntries((previous) => [
+                entry,
+                ...previous.filter((item) => item.id !== entry.id),
+            ]);
         } catch (submitError) {
             setError(getErrorMessage(submitError));
         } finally {
@@ -100,14 +134,17 @@ export default function MainScreen({ user, token, onLogout }: MainScreenProps) {
 
     React.useEffect(() => {
         let cancelled = false;
-        const loadLatestEntry = async () => {
+        const loadEntries = async () => {
             setLoading(true);
             setError(null);
             try {
-                const entry = await fetchLatestMoneyEntry(token);
-                if (!cancelled) {
-                    applyLatestEntry(entry);
+                const entries = await fetchMoneyEntries(token);
+                if (cancelled) {
+                    return;
                 }
+                const sortedEntries = sortEntries(entries ?? []);
+                setHistoryEntries(sortedEntries);
+                applyLatestEntry(sortedEntries[0] ?? null);
             } catch (loadError) {
                 if (!cancelled) {
                     setError(getErrorMessage(loadError));
@@ -118,11 +155,11 @@ export default function MainScreen({ user, token, onLogout }: MainScreenProps) {
                 }
             }
         };
-        loadLatestEntry();
+        loadEntries();
         return () => {
             cancelled = true;
         };
-    }, [token, applyLatestEntry]);
+    }, [token, applyLatestEntry, sortEntries]);
 
     const budgetLabel = loading
         ? 'Loading...'
@@ -135,20 +172,22 @@ export default function MainScreen({ user, token, onLogout }: MainScreenProps) {
             ? 'No data'
             : lastBalance.toFixed(2);
 
-    return (
-        <ScrollView contentContainerStyle={styles.container} style={styles.scrollView}>
-            <View style={styles.card}>
-                <View style={styles.topRow}>
-                    <Text style={styles.emailText}>{user.email}</Text>
-                    <Pressable
-                        style={({ pressed }) => [styles.secondaryButton, pressed && styles.secondaryButtonPressed]}
-                        onPress={onLogout}
-                    >
-                        <Text style={styles.secondaryButtonText}>Log out</Text>
-                    </Pressable>
-                </View>
+    const displayName = user.username || user.email;
+    const secondaryEmail = user.username ? user.email : null;
 
-                <Text style={styles.subtitle}>Logged in as {user.username || user.email}</Text>
+    return (
+        <View style={styles.screen}>
+            <ScrollView contentContainerStyle={styles.container} style={styles.scrollView}>
+                <View style={styles.card}>
+                    <View style={styles.topRow}>
+                        <Text style={styles.title}>Money Manager</Text>
+                        <Pressable
+                            style={({ pressed }) => [styles.menuButton, pressed && styles.menuButtonPressed]}
+                            onPress={() => setSidebarOpen(true)}
+                        >
+                            <Text style={styles.menuButtonText}>Account</Text>
+                        </Pressable>
+                    </View>
 
                 <View style={styles.inputRow}>
                     <View style={styles.inputGroup}>
@@ -195,15 +234,78 @@ export default function MainScreen({ user, token, onLogout }: MainScreenProps) {
                     </Pressable>
                 </View>
 
-                <Text style={styles.budgetText}>Current budget: {budgetLabel}</Text>
-                <Text style={styles.lastBalanceText}>Last balance: {lastBalanceLabel}</Text>
+                <View style={styles.summaryCard}>
+                    <Text style={styles.summaryLabel}>Current budget</Text>
+                    <Text style={styles.summaryValue}>{budgetLabel}</Text>
+                    <Text style={styles.summaryLabel}>Last balance</Text>
+                    <Text style={styles.summarySubvalue}>{lastBalanceLabel}</Text>
+                </View>
+                <View style={styles.historyContainer}>
+                    <Text style={styles.historyTitle}>History</Text>
+                    {loading ? (
+                        <Text style={styles.historyPlaceholder}>Loading...</Text>
+                    ) : historyEntries.length === 0 ? (
+                        <Text style={styles.historyPlaceholder}>No history yet.</Text>
+                    ) : (
+                        historyEntries.map((entry) => (
+                            <View key={entry.id} style={styles.historyItem}>
+                                <Text style={styles.historyDate}>{formatEntryDate(entry.created_at)}</Text>
+                                <View style={styles.historyRow}>
+                                    <Text style={styles.historyLabel}>Balance</Text>
+                                    <Text style={styles.historyValue}>{entry.balance.toFixed(2)}</Text>
+                                </View>
+                                <View style={styles.historyRow}>
+                                    <Text style={styles.historyLabel}>Budget</Text>
+                                    <Text style={styles.historyValue}>{entry.budget.toFixed(2)}</Text>
+                                </View>
+                                <View style={styles.historyRow}>
+                                    <Text style={styles.historyLabel}>Ratio</Text>
+                                    <Text style={styles.historyValue}>
+                                        {formatRatioPercent(entry.ratio)}%
+                                    </Text>
+                                </View>
+                            </View>
+                        ))
+                    )}
+                </View>
                 {error ? <Text style={styles.errorText}>{error}</Text> : null}
-            </View>
-        </ScrollView>
+                </View>
+            </ScrollView>
+            {sidebarOpen ? (
+                <View style={styles.sidebarOverlay}>
+                    <Pressable
+                        style={styles.sidebarBackdrop}
+                        onPress={() => setSidebarOpen(false)}
+                    />
+                    <View style={styles.sidebar}>
+                        <Text style={styles.sidebarName}>{displayName}</Text>
+                        {secondaryEmail ? (
+                            <Text style={styles.sidebarEmail}>{secondaryEmail}</Text>
+                        ) : null}
+                        <Pressable
+                            style={({ pressed }) => [
+                                styles.secondaryButton,
+                                pressed && styles.secondaryButtonPressed,
+                            ]}
+                            onPress={() => {
+                                setSidebarOpen(false);
+                                onLogout();
+                            }}
+                        >
+                            <Text style={styles.secondaryButtonText}>Log out</Text>
+                        </Pressable>
+                    </View>
+                </View>
+            ) : null}
+        </View>
     );
 }
 
 const styles = StyleSheet.create({
+    screen: {
+        flex: 1,
+        backgroundColor: theme.colors.background,
+    },
     scrollView: {
         flex: 1,
         backgroundColor: theme.colors.background,
@@ -212,34 +314,40 @@ const styles = StyleSheet.create({
         flexGrow: 1,
         paddingHorizontal: 24,
         paddingVertical: 24,
-        justifyContent: 'center',
         alignItems: 'center',
     },
     card: {
         width: '100%',
-        maxWidth: 360,
+        maxWidth: 520,
+        alignSelf: 'center',
         padding: 24,
-        borderRadius: theme.radii.md,
-        backgroundColor: theme.colors.card,
-        borderWidth: 1,
-        borderColor: theme.colors.cardBorder,
-        ...theme.shadow,
     },
     topRow: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        marginBottom: 12,
-    },
-    emailText: {
-        fontSize: 12,
-        color: theme.colors.textMuted,
-    },
-    subtitle: {
-        fontSize: 20,
-        fontWeight: '600',
-        color: theme.colors.accent,
         marginBottom: 16,
+    },
+    title: {
+        fontSize: 20,
+        fontWeight: '700',
+        color: theme.colors.textPrimary,
+    },
+    menuButton: {
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        borderRadius: theme.radii.sm,
+        backgroundColor: theme.colors.inputBackground,
+        borderWidth: 1,
+        borderColor: theme.colors.inputBorder,
+    },
+    menuButtonPressed: {
+        opacity: 0.8,
+    },
+    menuButtonText: {
+        color: theme.colors.textPrimary,
+        fontWeight: '600',
+        fontSize: 13,
     },
     inputRow: {
         flexDirection: 'row',
@@ -292,18 +400,77 @@ const styles = StyleSheet.create({
         color: theme.colors.dangerText,
         fontWeight: '600',
     },
-    budgetText: {
-        marginTop: 16,
-        fontSize: 22,
+    summaryCard: {
+        marginTop: 24,
+        paddingVertical: 18,
+        paddingHorizontal: 16,
+        borderRadius: theme.radii.md,
+        backgroundColor: 'rgba(255, 255, 255, 0.04)',
+        borderWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.12)',
+    },
+    summaryLabel: {
+        fontSize: 13,
+        textTransform: 'uppercase',
+        letterSpacing: 1,
+        color: theme.colors.textMuted,
+        textAlign: 'center',
+    },
+    summaryValue: {
+        marginTop: 6,
+        marginBottom: 14,
+        fontSize: 34,
+        fontWeight: '800',
+        color: theme.colors.textPrimary,
+        textAlign: 'center',
+    },
+    summarySubvalue: {
+        marginTop: 6,
+        fontSize: 20,
         fontWeight: '700',
         color: theme.colors.textPrimary,
         textAlign: 'center',
     },
-    lastBalanceText: {
-        marginTop: 6,
-        fontSize: 14,
+    historyContainer: {
+        marginTop: 16,
+        width: '100%',
+    },
+    historyTitle: {
+        fontSize: 16,
+        fontWeight: '700',
+        color: theme.colors.textPrimary,
+        marginBottom: 8,
+    },
+    historyPlaceholder: {
         color: theme.colors.textMuted,
         textAlign: 'center',
+    },
+    historyItem: {
+        padding: 12,
+        borderRadius: theme.radii.sm,
+        backgroundColor: theme.colors.inputBackground,
+        borderWidth: 1,
+        borderColor: theme.colors.inputBorder,
+        marginBottom: 10,
+    },
+    historyDate: {
+        color: theme.colors.textMuted,
+        fontSize: 12,
+        marginBottom: 6,
+    },
+    historyRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        marginTop: 2,
+    },
+    historyLabel: {
+        color: theme.colors.textMuted,
+        fontSize: 12,
+    },
+    historyValue: {
+        color: theme.colors.textPrimary,
+        fontSize: 13,
+        fontWeight: '600',
     },
     primaryButtonDisabled: {
         opacity: 0.7,
@@ -312,6 +479,37 @@ const styles = StyleSheet.create({
         color: theme.colors.danger,
         marginTop: 12,
         textAlign: 'center',
+    },
+    sidebarOverlay: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        flexDirection: 'row',
+    },
+    sidebarBackdrop: {
+        flex: 1,
+        backgroundColor: 'rgba(0, 0, 0, 0.45)',
+    },
+    sidebar: {
+        width: 260,
+        backgroundColor: theme.colors.background,
+        paddingTop: 48,
+        paddingHorizontal: 20,
+        borderLeftWidth: 1,
+        borderLeftColor: theme.colors.cardBorder,
+    },
+    sidebarName: {
+        fontSize: 18,
+        fontWeight: '700',
+        color: theme.colors.textPrimary,
+    },
+    sidebarEmail: {
+        marginTop: 6,
+        fontSize: 12,
+        color: theme.colors.textMuted,
+        marginBottom: 16,
     },
 });
 
