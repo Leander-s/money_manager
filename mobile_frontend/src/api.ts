@@ -28,6 +28,12 @@ export type MoneyEntryRequest = {
     ratio: number;
 };
 
+export type UpdateMoneyEntryRequest = {
+    id: number;
+    balance: number;
+    ratio: number;
+};
+
 export type LoginRequest = {
     email: string;
     password: string;
@@ -108,7 +114,7 @@ export async function fetchCurrentUser(token: AuthToken): Promise<User> {
 }
 
 export async function fetchLatestMoneyEntry(token: AuthToken): Promise<MoneyEntry | null> {
-    const entries = await requestJson<MoneyEntry[]>('/balance/1', {
+    const entries = await requestJson<MoneyEntry[]>('/balance/count/1', {
         method: 'GET',
         headers: { Authorization: `Bearer ${token.token}` },
     });
@@ -136,5 +142,29 @@ export async function createMoneyEntry(
             'Content-Type': 'application/json',
         },
         body: JSON.stringify(request),
+    });
+}
+
+export async function updateMoneyEntry(
+    token: AuthToken,
+    request: UpdateMoneyEntryRequest
+): Promise<MoneyEntry[]> {
+    return requestJson<MoneyEntry[]>(`/balance/id/${request.id}`, {
+        method: 'PUT',
+        headers: {
+            Authorization: `Bearer ${token.token}`,
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ balance: request.balance, ratio: request.ratio }),
+    });
+}
+
+export async function deleteMoneyEntry(token: AuthToken, id: number): Promise<MoneyEntry[]> {
+    return requestJson<MoneyEntry[]>(`/balance/id/${id}`, {
+        method: 'DELETE',
+        headers: {
+            Authorization: `Bearer ${token.token}`,
+            'Content-Type': 'application/json',
+        },
     });
 }

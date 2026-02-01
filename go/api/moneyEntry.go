@@ -24,9 +24,34 @@ func (ctx *Context) BalanceHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (ctx *Context) BalanceHandlerByID(w http.ResponseWriter, r *http.Request) {
+	idStr := strings.TrimPrefix(r.URL.Path, "/balance/id/")
+	if idStr == "" {
+		http.Error(w, "ID is required", http.StatusBadRequest)
+		return
+	}
+
+	balanceID, err := uuid.Parse(idStr)
+	if err != nil {
+		http.Error(w, "Invalid ID", http.StatusBadRequest)
+		return
+	}
+
+	switch r.Method {
+	case http.MethodGet:
+		ctx.HandleBalanceGetByID(w, &balanceID)
+	case http.MethodDelete:
+		ctx.HandleBalanceDelete(w, &balanceID)
+	case http.MethodPut:
+		ctx.HandleBalanceUpdate(w, r, &balanceID)
+	default:
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+	}
+}
+
 func (ctx *Context) BalanceHandlerByCount(w http.ResponseWriter, r *http.Request) {
 	userID := r.Context().Value("userID").(uuid.UUID)
-	countStr := strings.TrimPrefix(r.URL.Path, "/balance/")
+	countStr := strings.TrimPrefix(r.URL.Path, "/balance/count/")
 	if countStr == "" {
 		http.Error(w, "Count is required", http.StatusBadRequest)
 		return
@@ -52,6 +77,56 @@ func (ctx *Context) BudgetHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintln(w, "Budget Path Accessed with method:", r.Method)
 }
 
+func (ctx *Context) HandleBalanceUpdate(w http.ResponseWriter, r *http.Request, balanceID *uuid.UUID) {
+	// Get actor ID from context
+	actorID := r.Context().Value("userID").(uuid.UUID)
+
+	// Decode request body
+	var entryForUpdate logic.EntryForUpdate
+	err := json.NewDecoder(r.Body).Decode(&entryForUpdate)
+	if err != nil {
+		http.Error(w, "Invalid request payload", http.StatusBadRequest)
+		return
+	}
+	entryForUpdate.ID = *balanceID
+
+	// Call logic to update balance
+	entries, errorResp := logic.UpdateBalance(ctx.Db, &actorID, &entryForUpdate)
+	if errorResp.Code != http.StatusOK {
+		http.Error(w, errorResp.Message, errorResp.Code)
+		return
+	}
+
+	// Respond with updated entries
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(entries)
+	fmt.Println("Updated entry with ID:", balanceID)
+}
+
+func (ctx *Context) HandleBalanceDelete(w http.ResponseWriter, balanceID *uuid.UUID) {
+	entries, errorResp := logic.DeleteBalance(ctx.Db, balanceID)
+	if errorResp.Code != http.StatusOK {
+		http.Error(w, errorResp.Message, errorResp.Code)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(entries)
+	fmt.Println("Deleted entry with ID:", balanceID)
+}
+
+func (ctx *Context) HandleBalanceGetByID(w http.ResponseWriter, balanceID *uuid.UUID) {
+	balance, errorResp := logic.GetBalanceByID(ctx.Db, balanceID)
+	if errorResp.Code != http.StatusOK {
+		http.Error(w, errorResp.Message, errorResp.Code)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(balance)
+	fmt.Println("Retrieved balance with ID:", balanceID)
+}
+
 func (ctx *Context) HandleBalanceGet(w http.ResponseWriter, id *uuid.UUID) { 
 	balances, errorResp := logic.GetAllBalances(ctx.Db, id)
 	if errorResp.Code != http.StatusOK {
@@ -60,7 +135,7 @@ func (ctx *Context) HandleBalanceGet(w http.ResponseWriter, id *uuid.UUID) {
 	}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(balances)
-	fmt.Println("Retrieved balance for user ID:", id)
+	fmt.Println("Retrieved balances for user ID:", id)
 }
 
 func (ctx *Context) HandleBalanceGetByCount(w http.ResponseWriter, userID *uuid.UUID, count int64) {

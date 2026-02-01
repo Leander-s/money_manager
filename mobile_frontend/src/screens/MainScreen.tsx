@@ -1,7 +1,16 @@
 import React from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
-import { AuthToken, createMoneyEntry, fetchMoneyEntries, MoneyEntry, User } from '../api';
+import {
+    AuthToken,
+    createMoneyEntry,
+    deleteMoneyEntry,
+    fetchMoneyEntries,
+    MoneyEntry,
+    updateMoneyEntry,
+    User,
+} from '../api';
+import HistoryEntryCard from '../components/HistoryEntryCard';
 import { theme } from '../theme';
 
 type MainScreenProps = {
@@ -48,26 +57,6 @@ export default function MainScreen({ user, token, onLogout }: MainScreenProps) {
         },
         [formatRatioPercent]
     );
-
-    const sortEntries = React.useCallback((entries: MoneyEntry[]) => {
-        return [...entries].sort((a, b) => {
-            const timeA = Date.parse(a.created_at);
-            const timeB = Date.parse(b.created_at);
-            if (Number.isNaN(timeA) && Number.isNaN(timeB)) {
-                return b.id - a.id;
-            }
-            if (Number.isNaN(timeA)) {
-                return 1;
-            }
-            if (Number.isNaN(timeB)) {
-                return -1;
-            }
-            if (timeA === timeB) {
-                return b.id - a.id;
-            }
-            return timeB - timeA;
-        });
-    }, []);
 
     const formatEntryDate = React.useCallback((value: string) => {
         const date = new Date(value);
@@ -138,13 +127,15 @@ export default function MainScreen({ user, token, onLogout }: MainScreenProps) {
             setLoading(true);
             setError(null);
             try {
-                const entries = await fetchMoneyEntries(token);
+                let entries = await fetchMoneyEntries(token);
                 if (cancelled) {
                     return;
                 }
-                const sortedEntries = sortEntries(entries ?? []);
-                setHistoryEntries(sortedEntries);
-                applyLatestEntry(sortedEntries[0] ?? null);
+                if (entries === null) {
+                    entries = []
+                }
+                setHistoryEntries(entries);
+                applyLatestEntry(entries[0] ?? null);
             } catch (loadError) {
                 if (!cancelled) {
                     setError(getErrorMessage(loadError));
@@ -159,7 +150,63 @@ export default function MainScreen({ user, token, onLogout }: MainScreenProps) {
         return () => {
             cancelled = true;
         };
-    }, [token, applyLatestEntry, sortEntries]);
+    }, [token, applyLatestEntry]);
+
+    const handleUpdateEntry = React.useCallback(
+        async (id: number, updatedBalance: number, updatedRatio: number) => {
+            setError(null);
+            try {
+                let updatedEntries = await updateMoneyEntry(token, {
+                    id,
+                    balance: updatedBalance,
+                    ratio: updatedRatio,
+                });
+                if (updatedEntries === null) {
+                    console.warn('Received null entries from API');
+                }
+                if (updatedEntries === null) {
+                    updatedEntries = [];
+                }
+                console.log('Updated entries after update:', updatedEntries);
+                setLastBalance(
+                    updatedEntries.length > 0 ? updatedEntries[0].balance : null
+                );
+                setHistoryEntries(updatedEntries);
+                setCurrentBudget(updatedEntries.length > 0 ? updatedEntries[0].budget : null);
+                return true;
+            } catch (updateError) {
+                setError(getErrorMessage(updateError));
+                return false;
+            }
+        },
+        [applyLatestEntry, token]
+    );
+
+    const handleDeleteEntry = React.useCallback(
+        async (id: number) => {
+            setError(null);
+            try {
+                let moneyEntries = await deleteMoneyEntry(token, id);
+                if (moneyEntries === null) {
+                    console.warn('Received null entries from API');
+                }
+                if (moneyEntries === null) {
+                    moneyEntries = [];
+                }
+                console.log('Updated entries after deletion:', moneyEntries);
+                setLastBalance(
+                    moneyEntries.length > 0 ? moneyEntries[0].balance : null
+                );
+                setHistoryEntries(moneyEntries);
+                setCurrentBudget(moneyEntries.length > 0 ? moneyEntries[0].budget : null);
+                return true;
+            } catch (deleteError) {
+                setError(getErrorMessage(deleteError));
+                return false;
+            }
+        },
+        [applyLatestEntry, token]
+    );
 
     const budgetLabel = loading
         ? 'Loading...'
@@ -189,86 +236,78 @@ export default function MainScreen({ user, token, onLogout }: MainScreenProps) {
                         </Pressable>
                     </View>
 
-                <View style={styles.inputRow}>
-                    <View style={styles.inputGroup}>
-                        <Text style={styles.label}>Balance</Text>
-                        <TextInput
-                            value={balance}
-                            onChangeText={handleBalanceChange}
-                            onSubmitEditing={handleBalanceSubmit}
-                            placeholder="0.00"
-                            placeholderTextColor={theme.colors.textMuted}
-                            keyboardType="decimal-pad"
-                            returnKeyType="next"
-                            style={styles.input}
-                        />
+                    <View style={styles.inputRow}>
+                        <View style={styles.inputGroup}>
+                            <Text style={styles.label}>Balance</Text>
+                            <TextInput
+                                value={balance}
+                                onChangeText={handleBalanceChange}
+                                onSubmitEditing={handleBalanceSubmit}
+                                placeholder="0.00"
+                                placeholderTextColor={theme.colors.textMuted}
+                                keyboardType="decimal-pad"
+                                returnKeyType="next"
+                                style={styles.input}
+                            />
+                        </View>
+
+                        <View style={styles.inputGroup}>
+                            <Text style={styles.label}>% to Budget</Text>
+                            <TextInput
+                                ref={ratioInputRef}
+                                value={ratio}
+                                onChangeText={handleRatioChange}
+                                onSubmitEditing={handleSubmit}
+                                placeholder="0-100%"
+                                placeholderTextColor={theme.colors.textMuted}
+                                keyboardType="decimal-pad"
+                                returnKeyType="done"
+                                style={styles.input}
+                            />
+                        </View>
+
+                        <Pressable
+                            disabled={submitting}
+                            style={({ pressed }) => [
+                                styles.primaryButton,
+                                pressed && styles.primaryButtonPressed,
+                                submitting && styles.primaryButtonDisabled,
+                            ]}
+                            onPress={handleSubmit}
+                        >
+                            <Text style={styles.primaryButtonText}>
+                                {submitting ? 'Submitting...' : 'Submit'}
+                            </Text>
+                        </Pressable>
                     </View>
 
-                    <View style={styles.inputGroup}>
-                        <Text style={styles.label}>% to Budget</Text>
-                        <TextInput
-                            ref={ratioInputRef}
-                            value={ratio}
-                            onChangeText={handleRatioChange}
-                            onSubmitEditing={handleSubmit}
-                            placeholder="0-100%"
-                            placeholderTextColor={theme.colors.textMuted}
-                            keyboardType="decimal-pad"
-                            returnKeyType="done"
-                            style={styles.input}
-                        />
+                    <View style={styles.summaryCard}>
+                        <Text style={styles.summaryLabel}>Current budget</Text>
+                        <Text style={styles.summaryValue}>{budgetLabel}</Text>
+                        <Text style={styles.summaryLabel}>Last balance</Text>
+                        <Text style={styles.summarySubvalue}>{lastBalanceLabel}</Text>
                     </View>
-
-                    <Pressable
-                        disabled={submitting}
-                        style={({ pressed }) => [
-                            styles.primaryButton,
-                            pressed && styles.primaryButtonPressed,
-                            submitting && styles.primaryButtonDisabled,
-                        ]}
-                        onPress={handleSubmit}
-                    >
-                        <Text style={styles.primaryButtonText}>
-                            {submitting ? 'Submitting...' : 'Submit'}
-                        </Text>
-                    </Pressable>
-                </View>
-
-                <View style={styles.summaryCard}>
-                    <Text style={styles.summaryLabel}>Current budget</Text>
-                    <Text style={styles.summaryValue}>{budgetLabel}</Text>
-                    <Text style={styles.summaryLabel}>Last balance</Text>
-                    <Text style={styles.summarySubvalue}>{lastBalanceLabel}</Text>
-                </View>
-                <View style={styles.historyContainer}>
-                    <Text style={styles.historyTitle}>History</Text>
-                    {loading ? (
-                        <Text style={styles.historyPlaceholder}>Loading...</Text>
-                    ) : historyEntries.length === 0 ? (
-                        <Text style={styles.historyPlaceholder}>No history yet.</Text>
-                    ) : (
-                        historyEntries.map((entry) => (
-                            <View key={entry.id} style={styles.historyItem}>
-                                <Text style={styles.historyDate}>{formatEntryDate(entry.created_at)}</Text>
-                                <View style={styles.historyRow}>
-                                    <Text style={styles.historyLabel}>Balance</Text>
-                                    <Text style={styles.historyValue}>{entry.balance.toFixed(2)}</Text>
-                                </View>
-                                <View style={styles.historyRow}>
-                                    <Text style={styles.historyLabel}>Budget</Text>
-                                    <Text style={styles.historyValue}>{entry.budget.toFixed(2)}</Text>
-                                </View>
-                                <View style={styles.historyRow}>
-                                    <Text style={styles.historyLabel}>Ratio</Text>
-                                    <Text style={styles.historyValue}>
-                                        {formatRatioPercent(entry.ratio)}%
-                                    </Text>
-                                </View>
-                            </View>
-                        ))
-                    )}
-                </View>
-                {error ? <Text style={styles.errorText}>{error}</Text> : null}
+                    <View style={styles.historyContainer}>
+                        <Text style={styles.historyTitle}>History</Text>
+                        {loading ? (
+                            <Text style={styles.historyPlaceholder}>Loading...</Text>
+                        ) : historyEntries.length === 0 ? (
+                            <Text style={styles.historyPlaceholder}>No history yet.</Text>
+                        ) : (
+                            historyEntries.map((entry) => (
+                                <HistoryEntryCard
+                                    key={entry.id}
+                                    entry={entry}
+                                    formatEntryDate={formatEntryDate}
+                                    formatRatioPercent={formatRatioPercent}
+                                    onUpdate={handleUpdateEntry}
+                                    onDelete={handleDeleteEntry}
+                                />
+                            )
+                            )
+                        )}
+                    </View>
+                    {error ? <Text style={styles.errorText}>{error}</Text> : null}
                 </View>
             </ScrollView>
             {sidebarOpen ? (

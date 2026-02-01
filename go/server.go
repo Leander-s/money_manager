@@ -68,7 +68,8 @@ func runServer(ctx *api.Context) {
 	// Balance handler to get all balances or insert a new one
 	mux.Handle("/balance", ctx.WithAuth(http.HandlerFunc(ctx.BalanceHandler)))
 	// Balance handler to get the n last balances
-	mux.Handle("/balance/", ctx.WithAuth(http.HandlerFunc(ctx.BalanceHandlerByCount)))
+	mux.Handle("/balance/count/", ctx.WithAuth(http.HandlerFunc(ctx.BalanceHandlerByCount)))
+	mux.Handle("/balance/id/", ctx.WithAuth(http.HandlerFunc(ctx.BalanceHandlerByID)))
 
 	// User handler to create a new user or get all users
 	mux.Handle("/user", ctx.WithAuth(http.HandlerFunc(ctx.UserHandler)))
@@ -98,7 +99,6 @@ func withCORS(next http.Handler, allowedOrigins string) http.Handler {
 		origins := strings.Split(allowedOrigins, ",")
 		origin := r.Header.Get("Origin")
 		if slices.Contains(origins, origin) {
-			fmt.Println("CORS allowed for origin:", origin)
 			w.Header().Set("Access-Control-Allow-Origin", origin)
 		}
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")

@@ -52,8 +52,10 @@ type AuthStore interface {
 type MoneyStore interface {
 	// Money-related methods would go here
 	InsertMoneyDB(entry *MoneyEntry) (uuid.UUID, error) 
+	SelectMoneyByIDDB(id *uuid.UUID) (*MoneyEntry, error)
 	SelectUserMoneyDB(userID *uuid.UUID) ([]*MoneyEntry, error) 
 	SelectUserMoneyByCountDB(userID *uuid.UUID, count int64) ([]*MoneyEntry, error) 
+	UpdateMoneyBatchDB(entries []*MoneyEntry) error
 	UpdateMoneyDB(entry *MoneyEntry) error 
 	DeleteMoneyDB(id *uuid.UUID) error
 }
